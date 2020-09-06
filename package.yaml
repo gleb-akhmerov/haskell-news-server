@@ -1,0 +1,52 @@
+name:                haskell-news-server
+version:             0.1.0.0
+github:              "gleb-akhmerov/haskell-news-server"
+license:             BSD3
+author:              "Gleb Akhmerov"
+maintainer:          "g.akhmerov@gmail.com"
+copyright:           "2020 Gleb Akhmerov"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Web
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/gleb-akhmerov/haskell-news-server#readme>
+
+dependencies:
+- base >= 4.7 && < 5
+
+library:
+  source-dirs: src
+  ghc-options:
+  - -Wall
+
+executables:
+  haskell-news-server-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -Wall
+    dependencies:
+    - haskell-news-server
+
+tests:
+  haskell-news-server-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    - -Wall
+    dependencies:
+    - haskell-news-server
