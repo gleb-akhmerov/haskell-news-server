@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f510c36c6d55ab8225d4fe18347368b6b963a4c54ca4c9b1e7607dc86f62cc61
+-- hash: b7949e7b9acbed4fbcbed9da211d27720f9d66b7cd9c194d0d9c09331d340076
 
 name:           haskell-news-server
 version:        0.1.0.0
@@ -35,6 +35,7 @@ library
   ghc-options: -Wall
   build-depends:
       base >=4.7 && <5
+    , postgresql-simple
   default-language: Haskell2010
 
 executable haskell-news-server-exe
@@ -47,6 +48,7 @@ executable haskell-news-server-exe
   build-depends:
       base >=4.7 && <5
     , haskell-news-server
+    , postgresql-simple
   default-language: Haskell2010
 
 test-suite haskell-news-server-test
@@ -60,4 +62,5 @@ test-suite haskell-news-server-test
   build-depends:
       base >=4.7 && <5
     , haskell-news-server
+    , postgresql-simple
   default-language: Haskell2010
