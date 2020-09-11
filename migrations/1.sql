@@ -18,6 +18,11 @@ create table category (
   name varchar(50) unique not null
 );
 
+create table photo (
+  id serial primary key,
+  content bytea not null
+);
+
 create table post (
   id serial primary key,
   is_draft bool not null,
@@ -26,7 +31,7 @@ create table post (
   author_id serial references author(id) not null,
   category_id serial references category(id) not null,
   text_content text not null,
-  main_photo bytea not null
+  main_photo_id serial references photo(id) not null
 );
 
 create table tag (
@@ -40,10 +45,10 @@ create table post_tag (
   primary key (tag_id, post_id)
 );
 
-create table additional_photo (
-  id serial primary key,
-  post_id serial references post(id) not null,
-  additional_photo bytea not null
+create table post_additional_photo (
+  photo_id serial references photo(id),
+  post_id serial references post(id),
+  primary key (photo_id, post_id)
 );
 
 create table commentary (
