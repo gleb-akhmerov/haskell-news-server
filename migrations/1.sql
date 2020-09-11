@@ -23,11 +23,21 @@ create table photo (
   content bytea not null
 );
 
-create table post (
+create table draft (
   id serial primary key,
-  is_draft bool not null,
   short_name varchar(50) not null,
   created_at date not null,
+  author_id serial references author(id) not null,
+  category_id serial references category(id) not null,
+  text_content text not null,
+  main_photo_id serial references photo(id) not null
+);
+
+create table post (
+  id serial primary key,
+  draft_id serial references draft(id) not null,
+  short_name varchar(50) not null,
+  published_at date not null,
   author_id serial references author(id) not null,
   category_id serial references category(id) not null,
   text_content text not null,
@@ -45,10 +55,22 @@ create table post_tag (
   primary key (tag_id, post_id)
 );
 
+create table draft_tag (
+  tag_id serial references tag(id),
+  draft_id serial references draft(id),
+  primary key (tag_id, draft_id)
+);
+
 create table post_additional_photo (
   photo_id serial references photo(id),
   post_id serial references post(id),
   primary key (photo_id, post_id)
+);
+
+create table draft_additional_photo (
+  photo_id serial references photo(id),
+  draft_id serial references draft(id),
+  primary key (photo_id, draft_id)
 );
 
 create table commentary (
