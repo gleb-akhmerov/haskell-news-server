@@ -21,7 +21,10 @@ description:         Please see the README on GitHub at <https://github.com/gleb
 
 dependencies:
 - base >= 4.7 && < 5
+- bytestring
+- containers
 - postgresql-simple
+- time
 
 library:
   source-dirs: src
@@ -51,3 +54,4 @@ tests:
     - -Wall
     dependencies:
     - haskell-news-server
+    - hspec
