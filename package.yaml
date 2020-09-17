@@ -22,8 +22,11 @@ description:         Please see the README on GitHub at <https://github.com/gleb
 dependencies:
 - base >= 4.7 && < 5
 - bytestring
+- beam-core
+- beam-postgres
 - containers
 - postgresql-simple
+- text
 - time
 
 library:

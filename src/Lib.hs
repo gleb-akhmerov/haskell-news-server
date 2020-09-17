@@ -8,8 +8,13 @@ import Data.ByteString ( ByteString )
 import Data.Set ( Set )
 import Data.String ( fromString )
 import Data.Time ( Day )
+
 import Database.PostgreSQL.Simple ( connectPostgreSQL, execute_, begin, rollback, query_, Connection, fromBinary )
 import Database.PostgreSQL.Simple.SqlQQ
+import Database.Beam
+import Database.Beam.Postgres
+
+import BeamSchema (categoryWithParents, postsWithCategories, newsDb, NewsDb(..), CategoryT(..), PrimaryKey(CategoryId))
 
 data PostFilter
   = PfPublishedAt Day
@@ -113,4 +118,20 @@ someFunc = do
   conn <- connectPostgreSQL "host='localhost' port='5432' dbname='haskell-news-server' user='postgres'"
   begin conn
   print =<< execute_ conn (fromString migrationSql)
+  runBeamPostgresDebug putStrLn conn $ runInsert $
+    insert (_dbCategory newsDb) $
+      insertValues
+        [ Category 4 (CategoryId Nothing) "Programming Languages"
+        , Category 5 (CategoryId (Just 4)) "Python"
+        , Category 6 (CategoryId (Just 5)) "A"
+        , Category 7 (CategoryId (Just 5)) "B"
+        , Category 8 (CategoryId (Just 4)) "C"
+        , Category 9 (CategoryId Nothing) "D"
+        ]
+  runBeamPostgresDebug putStrLn conn $ do
+    cats <- runSelectReturningList $ select (categoryWithParents (val_ 7))
+    mapM_ (liftIO . putStrLn . show) cats
+  runBeamPostgresDebug putStrLn conn $ do
+    xs <- runSelectReturningList $ select postsWithCategories
+    mapM_ (liftIO . putStrLn . show) xs
   rollback conn
