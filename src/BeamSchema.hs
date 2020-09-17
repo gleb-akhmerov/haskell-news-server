@@ -251,22 +251,6 @@ allUsersFiltered = do
   guard_ (_usrId user ==. val_ 1)
   pure user
 
-{-
-categoryWithParents :: PrimaryKey CategoryT Identity -> With Postgres NewsDb (Q Postgres NewsDb s (CategoryT (QExpr Postgres s)))
-categoryWithParents (CategoryId categoryId) = do
-  rec catTree <- selecting $
-        (do
-          cat <- all_ (_dbCategory newsDb)
-          guard_ (_categoryId cat ==. val_ categoryId)
-          pure cat)
-          `unionAll_`
-          (do childCat <- reuse catTree
-              cat <- join_ (_dbCategory newsDb)
-                           (\c -> _categoryId c ==. unsafeRetype (unCategoryId (_categoryParentId childCat)))
-              pure cat)
-  pure (reuse catTree)
--}
-
 categoryWithParentsImpl :: (Monoid a, IsString a) => a -> a
 categoryWithParentsImpl categoryId =
   "(with recursive category_tree as (\
@@ -278,7 +262,6 @@ categoryWithParentsImpl categoryId =
   \)\
   \select array_agg(name) from category_tree)"
 
---categoryWithParents :: QGenExpr QValueContext Postgres s Int32 -> Q Postgres NewsDb s (QGenExpr e Postgres s (PGArray Text))
 categoryWithParents :: C (QExpr Postgres s) Int32 -> Q Postgres NewsDb s (QGenExpr e Postgres s (PGArray Text))
 categoryWithParents =
   let expr = customExpr_ categoryWithParentsImpl :: C (QExpr Postgres s) Int32 -> QGenExpr e Postgres s (PGArray Text)
