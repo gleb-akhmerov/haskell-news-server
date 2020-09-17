@@ -34,8 +34,7 @@ create table draft (
 );
 
 create table post (
-  id serial primary key,
-  draft_id serial references draft(id) not null,
+  id serial primary key references draft(id),
   short_name varchar(50) not null,
   published_at date not null,
   author_id serial references author(id) not null,
