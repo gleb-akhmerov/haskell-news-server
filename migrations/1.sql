@@ -14,7 +14,7 @@ create table author (
 
 create table category (
   id serial primary key,
-  parent_id serial references category(id),
+  parent_id integer references category(id),
   name varchar(50) unique not null
 );
 
