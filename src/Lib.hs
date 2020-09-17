@@ -7,25 +7,44 @@ module Lib where
 import Data.ByteString ( ByteString )
 import Data.Set ( Set )
 import Data.String ( fromString )
-import Data.Time ( Day )
+import Data.Time ( UTCTime )
 
 import Database.PostgreSQL.Simple ( connectPostgreSQL, execute_, begin, rollback, query_, Connection, fromBinary )
 import Database.PostgreSQL.Simple.SqlQQ
-import Database.Beam
+import Database.Beam hiding (date)
 import Database.Beam.Postgres
 
-import BeamSchema (categoryWithParents, postsWithCategories, newsDb, NewsDb(..), CategoryT(..), PrimaryKey(CategoryId))
+import BeamSchema (categoryWithParents, postsWithCategories, newsDb, NewsDb(..), CategoryT(..), PrimaryKey(CategoryId), PostT(..))
 
 data PostFilter
-  = PfPublishedAt Day
-  | PfPublishedAtLt Day
-  | PfPublishedAtGt Day
+  = PfPublishedAt UTCTime
+  | PfPublishedAtLt UTCTime
+  | PfPublishedAtGt UTCTime
   | PfTag Int
   | PfTagsIn [Int]
   | PfTagsAll [Int]
   | PfNameSubstring String
   | PfContentSubstring String
   deriving (Eq, Ord)
+
+applyOneFilterToQuery :: PostFilter -> Q Postgres NewsDb s (PostT (QExpr Postgres s)) -> Q Postgres NewsDb s (PostT (QExpr Postgres s))
+applyOneFilterToQuery flt query = do
+  post <- query
+  guard_ $
+    case flt of
+      PfPublishedAt date ->
+        _postPublishedAt post ==. val_ date
+      PfPublishedAtLt date ->
+        _postPublishedAt post <. val_ date
+      PfPublishedAtGt date ->
+        _postPublishedAt post >. val_ date
+      _ ->
+        val_ True
+  pure post
+
+applyFiltersToQuery :: Set PostFilter -> Q Postgres NewsDb s (PostT (QExpr Postgres s)) -> Q Postgres NewsDb s (PostT (QExpr Postgres s))
+applyFiltersToQuery filters query =
+  foldr applyOneFilterToQuery query filters
 
 data Order
   = Ascending
@@ -45,7 +64,7 @@ data User
     , uFirstName :: String
     , uLastName :: String
     , uAvatar :: ByteString
-    , uCreatedAt :: Day
+    , uCreatedAt :: UTCTime
     , uIsAdmin :: Bool
     }
 
