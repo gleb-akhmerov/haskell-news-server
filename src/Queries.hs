@@ -166,3 +166,34 @@ createCommentary ct =
           }
       ]
 
+publishDraft :: Int32 -> Pg Bool
+publishDraft draftId = do
+  mDraft <- runSelectReturningOne $ select $
+    filter_ (\d -> _draftId d ==. val_ draftId) (all_ (_dbDraft newsDb))
+  case mDraft of
+    Nothing ->
+      pure False
+    Just draft -> do
+      runInsert $ insert (_dbPost newsDb) $
+        insertExpressions
+          [ Post
+              { _postId          = val_ (pk draft)
+              , _postShortName   = val_ (_draftShortName draft)
+              , _postPublishedAt = now_
+              , _postAuthorId    = val_ (_draftAuthorId draft)
+              , _postCategoryId  = val_ (_draftCategoryId draft)
+              , _postTextContent = val_ (_draftTextContent draft)
+              , _postMainPhotoId = val_ (_draftMainPhotoId draft)
+              }
+          ]
+
+      let tagToRow tag =
+            PostTag
+              { _postTagTagId  = pk tag
+              , _postTagPostId = PostId (pk draft)
+              }
+      runInsert $ insert (_dbPostTag newsDb) $
+        insertValues (map tagToRow [])
+
+      pure True
+
