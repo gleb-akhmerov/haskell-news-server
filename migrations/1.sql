@@ -3,7 +3,7 @@ create table usr (
   first_name varchar(50) not null,
   last_name varchar(50) not null,
   avatar bytea not null,
-  created_at date not null,
+  created_at timestamptz not null,
   is_admin bool not null
 );
 
@@ -26,7 +26,7 @@ create table photo (
 create table draft (
   id serial primary key,
   short_name varchar(50) not null,
-  created_at date not null,
+  created_at timestamptz not null,
   author_id serial references author(id) not null,
   category_id serial references category(id) not null,
   text_content text not null,
@@ -36,7 +36,7 @@ create table draft (
 create table post (
   id serial primary key references draft(id),
   short_name varchar(50) not null,
-  published_at date not null,
+  published_at timestamptz not null,
   author_id serial references author(id) not null,
   category_id serial references category(id) not null,
   text_content text not null,
