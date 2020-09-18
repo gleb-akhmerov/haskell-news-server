@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a941d83d2aefca2bacefe83c439606c8732a140c3dc36c681e4b294d696ab28c
+-- hash: 066e05ae1b0d1d82188a722a64b2d844474d8c72699c265d7574bd0bb2f2d2d6
 
 name:           haskell-news-server
 version:        0.1.0.0
@@ -29,10 +29,12 @@ library
   exposed-modules:
       BeamSchema
       Lib
+      Queries
   other-modules:
       Paths_haskell_news_server
   hs-source-dirs:
       src
+  default-extensions: ScopedTypeVariables
   ghc-options: -Wall
   build-depends:
       base >=4.7 && <5
@@ -43,6 +45,7 @@ library
     , postgresql-simple
     , text
     , time
+    , vector
   default-language: Haskell2010
 
 executable haskell-news-server-exe
@@ -51,6 +54,7 @@ executable haskell-news-server-exe
       Paths_haskell_news_server
   hs-source-dirs:
       app
+  default-extensions: ScopedTypeVariables
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
   build-depends:
       base >=4.7 && <5
@@ -62,6 +66,7 @@ executable haskell-news-server-exe
     , postgresql-simple
     , text
     , time
+    , vector
   default-language: Haskell2010
 
 test-suite haskell-news-server-test
@@ -72,6 +77,7 @@ test-suite haskell-news-server-test
       Paths_haskell_news_server
   hs-source-dirs:
       test
+  default-extensions: ScopedTypeVariables
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
   build-depends:
       base >=4.7 && <5
@@ -84,4 +90,5 @@ test-suite haskell-news-server-test
     , postgresql-simple
     , text
     , time
+    , vector
   default-language: Haskell2010

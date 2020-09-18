@@ -3,25 +3,20 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
-{-# LANGUAGE RecursiveDo #-}
 
 module BeamSchema where
 
 import Data.ByteString (ByteString)
 import Data.Int (Int32)
-import Data.String (IsString)
 import Data.Text (Text)
 import Data.Time (UTCTime)
 
 import Database.Beam
-import Database.Beam.Postgres
-import Database.PostgreSQL.Simple.Types (PGArray)
 
 data UsrT f = Usr
   { _usrId        :: C f Int32
@@ -241,34 +236,3 @@ newsDb = defaultDbSettings `withDbModification`
         { _commentaryUserId = UsrId "user_id"
         , _commentaryPostId = PostId (DraftId "post_id") }
     }
-
-allUsers :: Q Postgres NewsDb s (UsrT (QExpr Postgres s))
-allUsers = all_ (_dbUsr newsDb)
-
-allUsersFiltered :: Q Postgres NewsDb s (UsrT (QExpr Postgres s))
-allUsersFiltered = do
-  user <- allUsers
-  guard_ (_usrId user ==. val_ 1)
-  pure user
-
-categoryWithParentsImpl :: (Monoid a, IsString a) => a -> a
-categoryWithParentsImpl categoryId =
-  "(with recursive category_tree as (\
-  \  select c1.name, c1.parent_id from category c1\
-  \  where id = " <> categoryId <>
-  "    union all\
-  \  select c2.name, c2.parent_id from category c2\
-  \  join category_tree on category_tree.parent_id = c2.id\
-  \)\
-  \select array_agg(name) from category_tree)"
-
-categoryWithParents :: C (QExpr Postgres s) Int32 -> Q Postgres NewsDb s (QGenExpr e Postgres s (PGArray Text))
-categoryWithParents =
-  let expr = customExpr_ categoryWithParentsImpl :: C (QExpr Postgres s) Int32 -> QGenExpr e Postgres s (PGArray Text)
-  in pure . expr
-
-postsWithCategories :: Q Postgres NewsDb s (PostT (QExpr Postgres s), QGenExpr e Postgres s (PGArray Text))
-postsWithCategories = do
-  post <- all_ (_dbPost newsDb)
-  cats <- categoryWithParents (unCategoryId (_postCategoryId post))
-  pure (post, cats)

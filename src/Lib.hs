@@ -14,7 +14,8 @@ import Database.PostgreSQL.Simple.SqlQQ
 import Database.Beam hiding (date)
 import Database.Beam.Postgres
 
-import BeamSchema (categoryWithParents, postsWithCategories, newsDb, NewsDb(..), CategoryT(..), PrimaryKey(CategoryId), PostT(..))
+import BeamSchema hiding (Author)
+import Queries
 
 data PostFilter
   = PfPublishedAt UTCTime
