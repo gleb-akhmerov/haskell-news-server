@@ -138,17 +138,13 @@ createDraft cd = do
   runInsert $ insert (_dbDraftTag newsDb) $
     insertValues (map tagToRow (cDraftTagIds cd))
 
-data CreateTag = CreateTag
-  { cTagName :: Text
-  }
-
-createTag :: CreateTag -> Pg ()
-createTag ct =
+createTag :: Text -> Pg ()
+createTag tagName =
   runInsert $ insert (_dbTag newsDb) $
     insertExpressions
       [ Tag
           { _tagId   = default_
-          , _tagName = val_ (cTagName ct)
+          , _tagName = val_ tagName
           }
       ]
 
