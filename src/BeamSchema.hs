@@ -14,7 +14,7 @@ module BeamSchema where
 import Data.ByteString (ByteString)
 import Data.Int (Int32)
 import Data.Text (Text)
-import Data.Time (UTCTime)
+import Data.Time (LocalTime)
 
 import Database.Beam
 
@@ -23,7 +23,7 @@ data UsrT f = Usr
   , _usrFirstName :: C f Text
   , _usrLastName  :: C f Text
   , _usrAvatar    :: C f ByteString
-  , _usrCreatedAt :: C f UTCTime
+  , _usrCreatedAt :: C f LocalTime
   , _usrIsAdmin   :: C f Bool
   }
   deriving (Generic, Beamable)
@@ -50,7 +50,7 @@ data PhotoT f = Photo
 data DraftT f = Draft
   { _draftId          :: C f Int32
   , _draftShortName   :: C f Text
-  , _draftCreatedAt   :: C f UTCTime
+  , _draftCreatedAt   :: C f LocalTime
   , _draftAuthorId    :: PrimaryKey AuthorT f
   , _draftCategoryId  :: PrimaryKey CategoryT f
   , _draftTextContent :: C f Text
@@ -61,7 +61,7 @@ data DraftT f = Draft
 data PostT f = Post
   { _postId          :: PrimaryKey DraftT f
   , _postShortName   :: C f Text
-  , _postPublishedAt :: C f UTCTime
+  , _postPublishedAt :: C f LocalTime
   , _postAuthorId    :: PrimaryKey AuthorT f
   , _postCategoryId  :: PrimaryKey CategoryT f
   , _postTextContent :: C f Text
@@ -167,26 +167,45 @@ instance Table CommentaryT where
     deriving (Generic, Beamable)
   primaryKey = CommentaryId . _commentaryId
 
---type Usr = UsrT Identity
---type Author = AuthorT Identity
+type Usr = UsrT Identity
+type Author = AuthorT Identity
 type Category = CategoryT Identity
---type Photo = PhotoT Identity
---type Draft = DraftT Identity
+type Photo = PhotoT Identity
+type Draft = DraftT Identity
 type Post = PostT Identity
+type Tag = TagT Identity
+type PostTag = PostTagT Identity
+type DraftTag = DraftTagT Identity
+type PostAdditionalPhoto = PostAdditionalPhotoT Identity
+type DraftAdditionalPhoto = DraftAdditionalPhotoT Identity
+type Commentary = CommentaryT Identity
 
---deriving instance Show Usr
---deriving instance Show Author
+deriving instance Show Usr
+deriving instance Show Author
 deriving instance Show Category
---deriving instance Show Photo
---deriving instance Show Draft
+deriving instance Show Photo
+deriving instance Show Draft
 deriving instance Show Post
+deriving instance Show Tag
+deriving instance Show PostTag
+deriving instance Show DraftTag
+deriving instance Show PostAdditionalPhoto
+deriving instance Show DraftAdditionalPhoto
+deriving instance Show Commentary
 
 deriving instance Show (PrimaryKey UsrT Identity)
 deriving instance Show (PrimaryKey AuthorT Identity)
-deriving instance Show (PrimaryKey PhotoT Identity)
-deriving instance Show (PrimaryKey DraftT Identity)
 deriving instance Show (PrimaryKey CategoryT Identity)
 deriving instance Show (PrimaryKey CategoryT (Nullable Identity))
+deriving instance Show (PrimaryKey PhotoT Identity)
+deriving instance Show (PrimaryKey DraftT Identity)
+deriving instance Show (PrimaryKey PostT Identity)
+deriving instance Show (PrimaryKey TagT Identity)
+deriving instance Show (PrimaryKey PostTagT Identity)
+deriving instance Show (PrimaryKey DraftTagT Identity)
+deriving instance Show (PrimaryKey PostAdditionalPhotoT Identity)
+deriving instance Show (PrimaryKey DraftAdditionalPhotoT Identity)
+deriving instance Show (PrimaryKey CommentaryT Identity)
 
 data NewsDb f = NewsDb
   { _dbUsr                  :: f (TableEntity UsrT)

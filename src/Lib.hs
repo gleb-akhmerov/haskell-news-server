@@ -4,23 +4,21 @@
 
 module Lib where
 
-import Data.ByteString ( ByteString )
-import Data.Set ( Set )
-import Data.String ( fromString )
-import Data.Time ( UTCTime )
+import Data.Set (Set)
+import Data.String (fromString)
+import Data.Time (LocalTime)
 
-import Database.PostgreSQL.Simple ( connectPostgreSQL, execute_, begin, rollback, query_, Connection, fromBinary )
-import Database.PostgreSQL.Simple.SqlQQ
+import Database.PostgreSQL.Simple (connectPostgreSQL, execute_, begin, rollback)
 import Database.Beam hiding (date)
 import Database.Beam.Postgres
 
-import BeamSchema hiding (Author)
+import BeamSchema
 import Queries
 
 data PostFilter
-  = PfPublishedAt UTCTime
-  | PfPublishedAtLt UTCTime
-  | PfPublishedAtGt UTCTime
+  = PfPublishedAt LocalTime
+  | PfPublishedAtLt LocalTime
+  | PfPublishedAtGt LocalTime
   | PfTag Int
   | PfTagsIn [Int]
   | PfTagsAll [Int]
@@ -51,86 +49,13 @@ data Order
   = Ascending
   | Descending
 
-data Ordered a = Ordered Order a
+data PostOrder = PostOrder Order PostOrderBy
 
-data PostOrder
+data PostOrderBy
   = PoPublishedAt
   | PoAuthorName
   | PoCategoryName
   | PoPhotoCount
-
-data User
-  = User
-    { uId :: Int
-    , uFirstName :: String
-    , uLastName :: String
-    , uAvatar :: ByteString
-    , uCreatedAt :: UTCTime
-    , uIsAdmin :: Bool
-    }
-
-data Author
-  = Author
-    { aShortDescription :: String
-    , aUser :: User
-    }
-
-getAllAuthors :: Connection -> IO [Author]
-getAllAuthors conn = do
-  rows <- query_ conn [sql|
-    select
-      a.short_description,
-      u.id,
-      u.first_name,
-      u.last_name,
-      u.avatar,
-      u.created_at,
-      u.is_admin
-    from
-      author a
-    join
-      usr u
-    on
-      u.id = a.id
-  |]
-  let f = \( aShortDescription
-           , uId
-           , uFirstName
-           , uLastName
-           , uAvatarBytea
-           , uCreatedAt
-           , uIsAdmin
-           ) ->
-             let uAvatar = fromBinary uAvatarBytea
-                 aUser = User {..}
-             in Author {..}
-  return $ map f rows
-
-data Request
-  = GetPosts (Set PostFilter) (Ordered PostOrder)
-  | CreateAuthor  -- admin
-  | GetAllAuthors -- admin
-  | UpdateAuthor  -- admin
-  | DeleteAuthor  -- admin
-  | CreateCategory -- admin
-  | GetAllCategories
-  | UpdateCategory -- admin
-  | DeleteCategory -- admin
-  | CreateTag -- admin
-  | GetAllTags
-  | UpdateTag -- admin
-  | DeleteTag -- admin
-  | CreateDraft  -- author
-  | GetDraft     -- author
-  | UpdateDraft  -- author
-  | DeleteDraft  -- author
-  | PublishDraft -- author
-  | CreateUser
-  | GetAllUsers
-  | DeleteUser -- admin
-  | CreateCommentary
-  | GetPostCommentaries
-  | DeleteCommentary
 
 someFunc :: IO ()
 someFunc = do
@@ -151,7 +76,16 @@ someFunc = do
   runBeamPostgresDebug putStrLn conn $ do
     cats <- runSelectReturningList $ select (categoryWithParents (val_ 7))
     mapM_ (liftIO . putStrLn . show) cats
-  runBeamPostgresDebug putStrLn conn $ do
+
     xs <- runSelectReturningList $ select postsWithCategories
     mapM_ (liftIO . putStrLn . show) xs
+
+    createUser CreateUser
+                 { cUserFirstName = "John"
+                 , cUserLastName = "Doe"
+                 , cUserAvatar = ""
+                 , cUserIsAdmin = False
+                 }
+    us <- runSelectReturningList $ select $ all_ (_dbUsr newsDb)
+    mapM_ (liftIO . putStrLn . show) us
   rollback conn
