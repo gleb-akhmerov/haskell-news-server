@@ -202,9 +202,9 @@ publishDraft draftId = do
     Nothing ->
       throwE $ "Draft with id doesn't exist: " ++ show draftId
     Just draft -> do
-      [post] <- runInsertReturningList $ insert (_dbPost newsDb) $
-        insertExpressions
-          [ Post
+      let newPost :: PostT (QExpr Postgres s)
+          newPost =
+            Post
               { _postId          = val_ (pk draft)
               , _postShortName   = val_ (_draftShortName draft)
               , _postPublishedAt = now_
@@ -213,10 +213,13 @@ publishDraft draftId = do
               , _postTextContent = val_ (_draftTextContent draft)
               , _postMainPhotoId = val_ (_draftMainPhotoId draft)
               }
-          ]
+      [insertedPost] <- runInsertReturningList $ insertOnConflict (_dbPost newsDb)
+        (insertExpressions [newPost])
+        (conflictingFields pk)
+        (onConflictUpdateSet (\fields _oldValues -> fields <-. newPost))
 
       runDelete $ delete (_dbPostTag newsDb)
-        (\pt -> _postTagPostId pt ==. val_ (pk post))
+        (\pt -> _postTagPostId pt ==. val_ (pk insertedPost))
       draftTags <- runSelectReturningList $ select $
         oneToMany_ (_dbDraftTag newsDb) _draftTagDraftId (val_ draft)
       let draftTagToRow draftTag =
