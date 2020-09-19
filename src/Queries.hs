@@ -4,8 +4,11 @@
 
 module Queries where
 
+import Control.Monad (forM, when)
+import Control.Monad.Trans.Except (ExceptT, throwE)
 import Data.ByteString (ByteString)
 import Data.Int (Int32)
+import Data.Maybe (isNothing)
 import Data.String (IsString)
 import Data.Text (Text)
 import Data.Vector (Vector)
@@ -97,8 +100,27 @@ data CreateDraft = CreateDraft
   , cDraftTagIds :: [Int32]
   }
 
-createDraft :: CreateDraft -> Pg ()
+createDraft :: CreateDraft -> ExceptT String Pg ()
 createDraft cd = do
+  _ <- do mAuthor <- runSelectReturningOne $ select $
+            filter_ (\a -> _authorId a ==. val_ (UsrId (cDraftAuthorId cd)))
+                    (all_ (_dbAuthor newsDb))
+          when (isNothing mAuthor) $
+            throwE $ "Author with id doesn't exist: " ++ show (cDraftAuthorId cd)
+
+          mCategory <- runSelectReturningOne $ select $
+            filter_ (\c -> _categoryId c ==. val_ (cDraftCategoryId cd))
+                    (all_ (_dbCategory newsDb))
+          when (isNothing mCategory) $
+            throwE $ "Category with id doesn't exist: " ++ show (cDraftCategoryId cd)
+
+          forM (cDraftTagIds cd) $ \tId -> do
+            mTag <- runSelectReturningOne $ select $
+              filter_ (\t -> _tagId t ==. val_ tId)
+                      (all_ (_dbTag newsDb))
+            when (isNothing mTag) $
+              throwE $ "Tag with id doesn't exist" ++ show tId
+
   let photoToRow (p :: ByteString) =
         Photo
           { _photoId      = default_
@@ -166,13 +188,13 @@ createCommentary ct =
           }
       ]
 
-publishDraft :: Int32 -> Pg Bool
+publishDraft :: Int32 -> ExceptT String Pg ()
 publishDraft draftId = do
   mDraft <- runSelectReturningOne $ select $
     filter_ (\d -> _draftId d ==. val_ draftId) (all_ (_dbDraft newsDb))
   case mDraft of
     Nothing ->
-      pure False
+      throwE $ "Draft with id doesn't exist: " ++ show draftId
     Just draft -> do
       runInsert $ insert (_dbPost newsDb) $
         insertExpressions
@@ -194,6 +216,4 @@ publishDraft draftId = do
               }
       runInsert $ insert (_dbPostTag newsDb) $
         insertValues (map tagToRow [])
-
-      pure True
 

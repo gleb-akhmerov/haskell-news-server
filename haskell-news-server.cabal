@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 066e05ae1b0d1d82188a722a64b2d844474d8c72699c265d7574bd0bb2f2d2d6
+-- hash: bc8384dc4a344c63ab2858e839f9655f9b71c6e2a629677eb9e8ee08e91e108b
 
 name:           haskell-news-server
 version:        0.1.0.0
@@ -45,6 +45,7 @@ library
     , postgresql-simple
     , text
     , time
+    , transformers
     , vector
   default-language: Haskell2010
 
@@ -66,6 +67,7 @@ executable haskell-news-server-exe
     , postgresql-simple
     , text
     , time
+    , transformers
     , vector
   default-language: Haskell2010
 
@@ -90,5 +92,6 @@ test-suite haskell-news-server-test
     , postgresql-simple
     , text
     , time
+    , transformers
     , vector
   default-language: Haskell2010
