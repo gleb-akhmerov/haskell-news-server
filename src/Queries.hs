@@ -230,3 +230,15 @@ publishDraft draftId = do
       runInsert $ insert (_dbPostTag newsDb) $
         insertValues (map draftTagToRow draftTags)
 
+      runDelete $ delete (_dbPostAdditionalPhoto newsDb)
+        (\pap -> _postAdditionalPhotoPostId pap ==. val_ (pk insertedPost))
+      draftPhotos <- runSelectReturningList $ select $
+        oneToMany_ (_dbDraftAdditionalPhoto newsDb) _draftAdditionalPhotoDraftId (val_ draft)
+      let draftAdditionalPhotoToRow dap =
+            PostAdditionalPhoto
+              { _postAdditionalPhotoPhotoId = _draftAdditionalPhotoPhotoId dap
+              , _postAdditionalPhotoPostId  = PostId (pk draft)
+              }
+      runInsert $ insert (_dbPostAdditionalPhoto newsDb) $
+        insertValues (map draftAdditionalPhotoToRow draftPhotos)
+
