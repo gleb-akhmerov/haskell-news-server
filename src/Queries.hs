@@ -66,8 +66,14 @@ data CreateAuthor = CreateAuthor
   , cAuthorShortDescription :: Text
   }
 
-createAuthor :: CreateAuthor -> Pg ()
-createAuthor ca =
+createAuthor :: CreateAuthor -> ExceptT String Pg ()
+createAuthor ca = do
+  do mUser <- runSelectReturningOne $ select $
+       filter_ (\a -> _usrId a ==. val_ (cAuthorUserId ca))
+               (all_ (_dbUsr newsDb))
+     when (isNothing mUser) $
+       throwE $ "User with id doesn't exist: " ++ show (cAuthorUserId ca)
+
   runInsert $ insert (_dbAuthor newsDb) $
     insertExpressions
       [ Author { _authorId               = val_ (UsrId (cAuthorUserId ca))
