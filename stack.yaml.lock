@@ -3,10 +3,70 @@
 # For more information, please see the documentation at:
 #   https://docs.haskellstack.org/en/stable/lock_files
 
-packages: []
+packages:
+- completed:
+    subdir: beam-core
+    name: beam-core
+    version: 0.9.0.0
+    git: https://github.com/haskell-beam/beam.git
+    pantry-tree:
+      size: 2704
+      sha256: e54dabae556fcac9079587adcce1b2bb107c196688c476dabdd84ca86ad556af
+    commit: 7f2e8b6983891b9d210199affffe3b6ca809e84e
+  original:
+    subdir: beam-core
+    git: https://github.com/haskell-beam/beam.git
+    commit: 7f2e8b6983891b9d210199affffe3b6ca809e84e
+- completed:
+    subdir: beam-postgres
+    name: beam-postgres
+    version: 0.5.0.0
+    git: https://github.com/haskell-beam/beam.git
+    pantry-tree:
+      size: 2681
+      sha256: ff322f4c5574d53a70ba4158e39224704ed932f812008be5f689471720a1d970
+    commit: 7f2e8b6983891b9d210199affffe3b6ca809e84e
+  original:
+    subdir: beam-postgres
+    git: https://github.com/haskell-beam/beam.git
+    commit: 7f2e8b6983891b9d210199affffe3b6ca809e84e
+- completed:
+    subdir: beam-migrate
+    name: beam-migrate
+    version: 0.5.0.0
+    git: https://github.com/haskell-beam/beam.git
+    pantry-tree:
+      size: 1825
+      sha256: fc3e96b9385d94869f37776177415fa6dcd4921d68ddf214a0b13444db2f5d1d
+    commit: 7f2e8b6983891b9d210199affffe3b6ca809e84e
+  original:
+    subdir: beam-migrate
+    git: https://github.com/haskell-beam/beam.git
+    commit: 7f2e8b6983891b9d210199affffe3b6ca809e84e
+- completed:
+    hackage: dependent-map-0.4.0.0@sha256:ca2b131046f4340a1c35d138c5a003fe4a5be96b14efc26291ed35fd08c62221,1657
+    pantry-tree:
+      size: 551
+      sha256: 5defa30010904d2ad05a036f3eaf83793506717c93cbeb599f40db1a3632cfc5
+  original:
+    hackage: dependent-map-0.4.0.0@sha256:ca2b131046f4340a1c35d138c5a003fe4a5be96b14efc26291ed35fd08c62221,1657
+- completed:
+    hackage: dependent-sum-0.7.1.0@sha256:5599aa89637db434431b1dd3fa7c34bc3d565ee44f0519bfbc877be1927c2531,2068
+    pantry-tree:
+      size: 290
+      sha256: 9cbfb32b5a8a782b7a1c941803fd517633cb699159b851c1d82267a9e9391b50
+  original:
+    hackage: dependent-sum-0.7.1.0@sha256:5599aa89637db434431b1dd3fa7c34bc3d565ee44f0519bfbc877be1927c2531,2068
+- completed:
+    hackage: constraints-extras-0.3.0.2@sha256:013b8d0392582c6ca068e226718a4fe8be8e22321cc0634f6115505bf377ad26,1853
+    pantry-tree:
+      size: 594
+      sha256: 3ce1012bfb02e4d7def9df19ce80b8cd2b472c691b25b181d9960638673fecd1
+  original:
+    hackage: constraints-extras-0.3.0.2@sha256:013b8d0392582c6ca068e226718a4fe8be8e22321cc0634f6115505bf377ad26
 snapshots:
 - completed:
-    size: 523443
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/14/0.yaml
-    sha256: 283773e7120f5446d961eab35ea95c9af9c24187cc178537bd29273200a05171
-  original: lts-14.0
+    size: 532380
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/16/15.yaml
+    sha256: 3b5f2a699aa5ed3abbc30410062bf743926f0868ce3eeb5655370c6c6cc1a9f4
+  original: lts-16.15

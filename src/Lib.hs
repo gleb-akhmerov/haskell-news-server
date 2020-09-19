@@ -8,7 +8,7 @@ import Data.Set (Set)
 import Data.String (fromString)
 import Data.Time (LocalTime)
 
-import Database.PostgreSQL.Simple (connectPostgreSQL, execute_, begin, rollback)
+import Database.PostgreSQL.Simple (execute_, begin, rollback)
 import Database.Beam hiding (date)
 import Database.Beam.Postgres
 
