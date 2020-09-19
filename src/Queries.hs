@@ -202,7 +202,7 @@ publishDraft draftId = do
     Nothing ->
       throwE $ "Draft with id doesn't exist: " ++ show draftId
     Just draft -> do
-      runInsert $ insert (_dbPost newsDb) $
+      [post] <- runInsertReturningList $ insert (_dbPost newsDb) $
         insertExpressions
           [ Post
               { _postId          = val_ (pk draft)
@@ -215,11 +215,15 @@ publishDraft draftId = do
               }
           ]
 
-      let tagToRow tag =
+      runDelete $ delete (_dbPostTag newsDb)
+        (\pt -> _postTagPostId pt ==. val_ (pk post))
+      draftTags <- runSelectReturningList $ select $
+        oneToMany_ (_dbDraftTag newsDb) _draftTagDraftId (val_ draft)
+      let draftTagToRow draftTag =
             PostTag
-              { _postTagTagId  = pk tag
+              { _postTagTagId  = _draftTagTagId draftTag
               , _postTagPostId = PostId (pk draft)
               }
       runInsert $ insert (_dbPostTag newsDb) $
-        insertValues (map tagToRow [])
+        insertValues (map draftTagToRow draftTags)
 
