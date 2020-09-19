@@ -123,7 +123,7 @@ instance Table CategoryT where
   primaryKey = CategoryId . _categoryId
 
 instance Table PhotoT where
-  data PrimaryKey PhotoT f = PhotoId (C f Int32)
+  data PrimaryKey PhotoT f = PhotoId { unPhotoId :: (C f Int32) }
     deriving (Generic, Beamable)
   primaryKey = PhotoId . _photoId
 

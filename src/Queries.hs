@@ -5,6 +5,7 @@
 module Queries where
 
 import Control.Monad (forM, when)
+import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except (ExceptT, throwE)
 import Data.ByteString (ByteString)
 import Data.Int (Int32)
@@ -194,6 +195,20 @@ createCommentary ct =
           }
       ]
 
+deleteOrphanedPhotos :: Pg ()
+deleteOrphanedPhotos =
+  let usedPhotoIds :: Q Postgres NewsDb s (PrimaryKey PhotoT (QExpr Postgres s))
+      usedPhotoIds =
+        (fmap _draftMainPhotoId (all_ (_dbDraft newsDb)))
+        `union_`
+        (fmap _postMainPhotoId (all_ (_dbPost newsDb)))
+        `union_`
+        (fmap _draftAdditionalPhotoPhotoId (all_ (_dbDraftAdditionalPhoto newsDb)))
+        `union_`
+        (fmap _postAdditionalPhotoPhotoId (all_ (_dbPostAdditionalPhoto newsDb)))
+  in runDelete $ delete (_dbPhoto newsDb)
+       (\p -> not_ (_photoId p `in_` [subquery_ $ fmap unPhotoId usedPhotoIds]))
+
 publishDraft :: Int32 -> ExceptT String Pg ()
 publishDraft draftId = do
   mDraft <- runSelectReturningOne $ select $
@@ -241,4 +256,6 @@ publishDraft draftId = do
               }
       runInsert $ insert (_dbPostAdditionalPhoto newsDb) $
         insertValues (map draftAdditionalPhotoToRow draftPhotos)
+
+      lift $ deleteOrphanedPhotos
 

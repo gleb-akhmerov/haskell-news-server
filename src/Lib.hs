@@ -88,4 +88,17 @@ someFunc = do
                  }
     us <- runSelectReturningList $ select $ all_ (_dbUsr newsDb)
     mapM_ (liftIO . putStrLn . show) us
+
+    runInsert $ insert (_dbPhoto newsDb) $
+      insertExpressions
+        [ Photo
+            { _photoId      = default_
+            , _photoContent = val_ ""
+            }
+        ]
+    ps <- runSelectReturningList $ select $ all_ (_dbPhoto newsDb)
+    mapM_ (liftIO . print) ps
+    deleteOrphanedPhotos
+    ps <- runSelectReturningList $ select $ all_ (_dbPhoto newsDb)
+    mapM_ (liftIO . print) ps
   rollback conn
