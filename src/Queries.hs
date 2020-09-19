@@ -128,7 +128,7 @@ createDraft cd = do
             when (isNothing mTag) $
               throwE $ "Tag with id doesn't exist" ++ show tId
 
-  let photoToRow (p :: ByteString) =
+  let photoToRow p =
         Photo
           { _photoId      = default_
           , _photoContent = val_ p
@@ -197,8 +197,7 @@ createCommentary ct =
 
 deleteOrphanedPhotos :: Pg ()
 deleteOrphanedPhotos =
-  let usedPhotoIds :: Q Postgres NewsDb s (PrimaryKey PhotoT (QExpr Postgres s))
-      usedPhotoIds =
+  let usedPhotoIds =
         (fmap _draftMainPhotoId (all_ (_dbDraft newsDb)))
         `union_`
         (fmap _postMainPhotoId (all_ (_dbPost newsDb)))
