@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bc8384dc4a344c63ab2858e839f9655f9b71c6e2a629677eb9e8ee08e91e108b
+-- hash: bdfd176875d57330e2e4701844870baf7848665cbeae638f7757c8020d75355c
 
 name:           haskell-news-server
 version:        0.1.0.0
@@ -75,7 +75,6 @@ test-suite haskell-news-server-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      TestData
       Paths_haskell_news_server
   hs-source-dirs:
       test
