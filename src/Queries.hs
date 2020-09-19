@@ -126,7 +126,7 @@ createDraft cd = do
               filter_ (\t -> _tagId t ==. val_ tId)
                       (all_ (_dbTag newsDb))
             when (isNothing mTag) $
-              throwE $ "Tag with id doesn't exist" ++ show tId
+              throwE $ "Tag with id doesn't exist: " ++ show tId
 
   let photoToRow p =
         Photo
