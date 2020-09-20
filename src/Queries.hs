@@ -22,9 +22,12 @@ import Database.Beam.Postgres
 
 import BeamSchema
 
-type T2 s a b = (QExpr Postgres s a, QExpr Postgres s b)
+type DbWith = With Postgres NewsDb
+type DbQ = Q Postgres NewsDb
+type DbQExpr = QExpr Postgres
+type T2 s a b = (DbQExpr s a, DbQExpr s b)
 
-categoryTree :: With Postgres NewsDb (Q Postgres NewsDb s (QExpr Postgres s Int32, CategoryT (QExpr Postgres s)))
+categoryTree :: DbWith (DbQ s (DbQExpr s Int32, CategoryT (DbQExpr s)))
 categoryTree = do
   rec catTree <- selecting $
         (do cat <- all_ (_dbCategory newsDb)
@@ -40,9 +43,9 @@ categoryTree = do
       & fmap (\(start, _ord, c) -> (start, c))
 
 postsWithCategories
-  :: With Postgres NewsDb
-       (Q Postgres NewsDb s
-         ( PostT (QExpr Postgres s)
+  :: DbWith
+       (DbQ s
+         ( PostT (DbQExpr s)
          , T2 s (Vector Int32) (Vector Text)
          , T2 s (Vector Int32) (Vector Text)))
 postsWithCategories = do
@@ -59,7 +62,7 @@ postsWithCategories = do
                     , (pgArrayAgg (_categoryId treeCat), pgArrayAgg (_categoryName treeCat))
                     , (pgArrayAgg (_tagId tag), pgArrayAgg (_tagName tag))))
 
-categoriesWithTrees :: With Postgres NewsDb (Q Postgres NewsDb s (CategoryT (QExpr Postgres s), QExpr Postgres s (Vector Int32), QExpr Postgres s (Vector Text)))
+categoriesWithTrees :: DbWith (DbQ s (CategoryT (DbQExpr s), DbQExpr s (Vector Int32), DbQExpr s (Vector Text)))
 categoriesWithTrees = do
   cats <- categoryTree
   pure $
