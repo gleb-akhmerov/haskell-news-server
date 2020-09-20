@@ -74,11 +74,14 @@ someFunc = do
         , Category 9 (CategoryId Nothing) "D"
         ]
   runBeamPostgresDebug putStrLn conn $ do
-    cats <- runSelectReturningList $ select (categoryWithParents (val_ 7))
-    mapM_ (liftIO . putStrLn . show) cats
+    do xs <- runSelectReturningList $ selectWith categoryTree
+       mapM_ (liftIO . putStrLn . show) xs
 
-    xs <- runSelectReturningList $ select postsWithCategories
-    mapM_ (liftIO . putStrLn . show) xs
+    do xs <- runSelectReturningList $ selectWith categoriesWithTrees
+       mapM_ (liftIO . putStrLn . show) xs
+
+    do xs <- runSelectReturningList $ selectWith postsWithCategories
+       mapM_ (liftIO . putStrLn . show) xs
 
     createUser CreateUser
                  { cUserFirstName = "John"
@@ -86,8 +89,8 @@ someFunc = do
                  , cUserAvatar = ""
                  , cUserIsAdmin = False
                  }
-    us <- runSelectReturningList $ select $ all_ (_dbUsr newsDb)
-    mapM_ (liftIO . putStrLn . show) us
+    do xs <- runSelectReturningList $ select $ all_ (_dbUsr newsDb)
+       mapM_ (liftIO . putStrLn . show) xs
 
     runInsert $ insert (_dbPhoto newsDb) $
       insertExpressions
@@ -96,9 +99,9 @@ someFunc = do
             , _photoContent = val_ ""
             }
         ]
-    ps <- runSelectReturningList $ select $ all_ (_dbPhoto newsDb)
-    mapM_ (liftIO . print) ps
+    do xs <- runSelectReturningList $ select $ all_ (_dbPhoto newsDb)
+       mapM_ (liftIO . print) xs
     deleteOrphanedPhotos
-    ps <- runSelectReturningList $ select $ all_ (_dbPhoto newsDb)
-    mapM_ (liftIO . print) ps
+    do xs <- runSelectReturningList $ select $ all_ (_dbPhoto newsDb)
+       mapM_ (liftIO . print) xs
   rollback conn

@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE RecursiveDo #-}
 
 module Queries where
 
@@ -10,7 +11,6 @@ import Control.Monad.Trans.Except (ExceptT, throwE)
 import Data.ByteString (ByteString)
 import Data.Int (Int32)
 import Data.Maybe (isNothing)
-import Data.String (IsString)
 import Data.Text (Text)
 import Data.Vector (Vector)
 
@@ -20,27 +20,44 @@ import Database.Beam.Postgres
 
 import BeamSchema
 
-categoryWithParentsImpl :: (Monoid a, IsString a) => a -> a
-categoryWithParentsImpl categoryId =
-  "(with recursive category_tree as (\
-  \  select c1.name, c1.parent_id from category c1\
-  \  where id = " <> categoryId <>
-  "    union all\
-  \  select c2.name, c2.parent_id from category c2\
-  \  join category_tree on category_tree.parent_id = c2.id\
-  \)\
-  \select array_agg(name) from category_tree)"
+categoryTree :: With Postgres NewsDb (Q Postgres NewsDb s (QExpr Postgres s Int32, CategoryT (QExpr Postgres s)))
+categoryTree = do
+  rec catTree <- selecting $
+        (do cat <- all_ (_dbCategory newsDb)
+            pure (_categoryId cat, cat))
+        `unionAll_`
+        (do (start, cat) <- reuse catTree
+            parentCat <- join_ (_dbCategory newsDb)
+                               (\c -> just_ (_categoryId c) ==. unCategoryId (_categoryParentId cat))
+            pure (start, parentCat))
+  pure (reuse catTree)
 
-categoryWithParents :: C (QExpr Postgres s) Int32 -> Q Postgres NewsDb s (QGenExpr e Postgres s (Vector Text))
-categoryWithParents =
-  let expr = customExpr_ categoryWithParentsImpl :: C (QExpr Postgres s) Int32 -> QGenExpr e Postgres s (Vector Text)
-  in pure . expr
+data Tuple3 a b c = Tuple3 (a, b, c)
 
-postsWithCategories :: Q Postgres NewsDb s (PostT (QExpr Postgres s), QGenExpr e Postgres s (Vector Text))
+postsWithCategories :: With Postgres NewsDb (Q Postgres NewsDb s (PostT (QExpr Postgres s), QExpr Postgres s (Vector Int32), QExpr Postgres s (Vector Text)))
 postsWithCategories = do
-  post <- all_ (_dbPost newsDb)
-  cats <- categoryWithParents (unCategoryId (_postCategoryId post))
-  pure (post, cats)
+  cats <- categoryTree
+  pure $ aggregate_ (\(post, (start, cat)) ->
+                       ( group_ post
+                       , pgArrayAgg start
+                       , pgArrayAgg (_categoryName cat))) $ do
+    post <- all_ (_dbPost newsDb)
+    c@(start, _) <- cats
+    guard_ (CategoryId start ==. _postCategoryId post)
+    pure (post, c)
+
+categoriesWithTrees :: With Postgres NewsDb (Q Postgres NewsDb s (CategoryT (QExpr Postgres s), QExpr Postgres s (Vector Int32), QExpr Postgres s (Vector (Maybe Int32)), QExpr Postgres s (Vector Text)))
+categoriesWithTrees = do
+  cats <- categoryTree
+  pure $ aggregate_ (\(cat, (_start, treeCat)) ->
+                       ( group_ cat
+                       , pgArrayAgg (_categoryId treeCat)
+                       , pgArrayAgg (unCategoryId (_categoryParentId treeCat))
+                       , pgArrayAgg (_categoryName treeCat))) $ do
+    cat <- all_ (_dbCategory newsDb)
+    c@(start, _) <- cats
+    guard_ (start ==. _categoryId cat)
+    pure (cat, c)
 
 data CreateUser = CreateUser
   { cUserFirstName :: Text
