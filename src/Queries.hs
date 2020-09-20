@@ -10,6 +10,7 @@ import Control.Monad (forM, when)
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except (ExceptT, throwE)
 import Data.ByteString (ByteString)
+import Data.Function ((&))
 import Data.Int (Int32)
 import Data.Maybe (isNothing)
 import Data.Text (Text)
@@ -32,37 +33,38 @@ categoryTree = do
                                (\c -> just_ (_categoryId c) ==. unCategoryId (_categoryParentId cat))
             pure (start, ord + 1, parentCat))
   pure $
-    fmap (\(start, _ord, c) -> (start, c)) $
-      orderBy_
-        (\(start, ord, _c) -> (asc_ start, asc_ ord))
-        (reuse catTree)
+    (reuse catTree)
+      & orderBy_ (\(start, ord, _c) -> (asc_ start, asc_ ord))
+      & fmap (\(start, _ord, c) -> (start, c))
 
 data Tuple3 a b c = Tuple3 (a, b, c)
 
 postsWithCategories :: With Postgres NewsDb (Q Postgres NewsDb s (PostT (QExpr Postgres s), QExpr Postgres s (Vector Int32), QExpr Postgres s (Vector Text)))
 postsWithCategories = do
   cats <- categoryTree
-  pure $ aggregate_ (\(post, (start, cat)) ->
-                       ( group_ post
-                       , pgArrayAgg start
-                       , pgArrayAgg (_categoryName cat))) $ do
-    post <- all_ (_dbPost newsDb)
-    c@(start, _) <- cats
-    guard_ (CategoryId start ==. _postCategoryId post)
-    pure (post, c)
+  pure $
+    do post <- all_ (_dbPost newsDb)
+       c@(start, _) <- cats
+       guard_ (CategoryId start ==. _postCategoryId post)
+       pure (post, c)
+    & aggregate_ (\(post, (start, cat)) ->
+                    ( group_ post
+                    , pgArrayAgg start
+                    , pgArrayAgg (_categoryName cat)))
 
 categoriesWithTrees :: With Postgres NewsDb (Q Postgres NewsDb s (CategoryT (QExpr Postgres s), QExpr Postgres s (Vector Int32), QExpr Postgres s (Vector (Maybe Int32)), QExpr Postgres s (Vector Text)))
 categoriesWithTrees = do
   cats <- categoryTree
-  pure $ aggregate_ (\(cat, (_start, treeCat)) ->
-                       ( group_ cat
-                       , pgArrayAgg (_categoryId treeCat)
-                       , pgArrayAgg (unCategoryId (_categoryParentId treeCat))
-                       , pgArrayAgg (_categoryName treeCat))) $ do
-    cat <- all_ (_dbCategory newsDb)
-    c@(start, _) <- cats
-    guard_ (start ==. _categoryId cat)
-    pure (cat, c)
+  pure $
+    do cat <- all_ (_dbCategory newsDb)
+       c@(start, _) <- cats
+       guard_ (start ==. _categoryId cat)
+       pure (cat, c)
+    & aggregate_ (\(cat, (_start, treeCat)) ->
+                    ( group_ cat
+                    , pgArrayAgg (_categoryId treeCat)
+                    , pgArrayAgg (unCategoryId (_categoryParentId treeCat))
+                    , pgArrayAgg (_categoryName treeCat)))
 
 data CreateUser = CreateUser
   { cUserFirstName :: Text
