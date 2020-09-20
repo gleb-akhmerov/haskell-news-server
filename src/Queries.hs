@@ -22,6 +22,8 @@ import Database.Beam.Postgres
 
 import BeamSchema
 
+type T2 s a b = (QExpr Postgres s a, QExpr Postgres s b)
+
 categoryTree :: With Postgres NewsDb (Q Postgres NewsDb s (QExpr Postgres s Int32, CategoryT (QExpr Postgres s)))
 categoryTree = do
   rec catTree <- selecting $
@@ -37,22 +39,27 @@ categoryTree = do
       & orderBy_ (\(start, ord, _c) -> (asc_ start, asc_ ord))
       & fmap (\(start, _ord, c) -> (start, c))
 
-data Tuple3 a b c = Tuple3 (a, b, c)
-
-postsWithCategories :: With Postgres NewsDb (Q Postgres NewsDb s (PostT (QExpr Postgres s), QExpr Postgres s (Vector Int32), QExpr Postgres s (Vector Text)))
+postsWithCategories
+  :: With Postgres NewsDb
+       (Q Postgres NewsDb s
+         ( PostT (QExpr Postgres s)
+         , T2 s (Vector Int32) (Vector Text)
+         , T2 s (Vector Int32) (Vector Text)))
 postsWithCategories = do
   cats <- categoryTree
   pure $
     do post <- all_ (_dbPost newsDb)
        c@(start, _) <- cats
        guard_ (CategoryId start ==. _postCategoryId post)
-       pure (post, c)
-    & aggregate_ (\(post, (start, cat)) ->
+       postTag <- oneToMany_ (_dbPostTag newsDb) _postTagPostId post
+       tag <- join_ (_dbTag newsDb) (\t -> _postTagTagId postTag ==. pk t)
+       pure (post, c, tag)
+    & aggregate_ (\(post, (_start, treeCat), tag) ->
                     ( group_ post
-                    , pgArrayAgg start
-                    , pgArrayAgg (_categoryName cat)))
+                    , (pgArrayAgg (_categoryId treeCat), pgArrayAgg (_categoryName treeCat))
+                    , (pgArrayAgg (_tagId tag), pgArrayAgg (_tagName tag))))
 
-categoriesWithTrees :: With Postgres NewsDb (Q Postgres NewsDb s (CategoryT (QExpr Postgres s), QExpr Postgres s (Vector Int32), QExpr Postgres s (Vector (Maybe Int32)), QExpr Postgres s (Vector Text)))
+categoriesWithTrees :: With Postgres NewsDb (Q Postgres NewsDb s (CategoryT (QExpr Postgres s), QExpr Postgres s (Vector Int32), QExpr Postgres s (Vector Text)))
 categoriesWithTrees = do
   cats <- categoryTree
   pure $
@@ -63,7 +70,6 @@ categoriesWithTrees = do
     & aggregate_ (\(cat, (_start, treeCat)) ->
                     ( group_ cat
                     , pgArrayAgg (_categoryId treeCat)
-                    , pgArrayAgg (unCategoryId (_categoryParentId treeCat))
                     , pgArrayAgg (_categoryName treeCat)))
 
 data CreateUser = CreateUser
