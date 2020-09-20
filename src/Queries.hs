@@ -2,6 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE RecursiveDo #-}
+{-# LANGUAGE TypeApplications #-}
 
 module Queries where
 
@@ -24,13 +25,17 @@ categoryTree :: With Postgres NewsDb (Q Postgres NewsDb s (QExpr Postgres s Int3
 categoryTree = do
   rec catTree <- selecting $
         (do cat <- all_ (_dbCategory newsDb)
-            pure (_categoryId cat, cat))
+            pure (_categoryId cat, as_ @Int32 1, cat))
         `unionAll_`
-        (do (start, cat) <- reuse catTree
+        (do (start, ord, cat) <- reuse catTree
             parentCat <- join_ (_dbCategory newsDb)
                                (\c -> just_ (_categoryId c) ==. unCategoryId (_categoryParentId cat))
-            pure (start, parentCat))
-  pure (reuse catTree)
+            pure (start, ord + 1, parentCat))
+  pure $
+    fmap (\(start, _ord, c) -> (start, c)) $
+      orderBy_
+        (\(start, ord, _c) -> (asc_ start, asc_ ord))
+        (reuse catTree)
 
 data Tuple3 a b c = Tuple3 (a, b, c)
 
