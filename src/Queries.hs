@@ -47,7 +47,8 @@ postsWithCategories
        (DbQ s
          ( PostT (DbQExpr s)
          , T2 s (Vector Int32) (Vector Text)
-         , T2 s (Vector Int32) (Vector Text)))
+         , T2 s (Vector Int32) (Vector Text)
+         , DbQExpr s (Vector Int32)))
 postsWithCategories = do
   catTree <- withCategoryTree
   pure $
@@ -56,11 +57,13 @@ postsWithCategories = do
        guard_ (CategoryId start ==. _postCategoryId post)
        postTag <- oneToMany_ (_dbPostTag newsDb) _postTagPostId post
        tag <- join_ (_dbTag newsDb) (\t -> _postTagTagId postTag ==. pk t)
-       pure (post, cTree, tag)
-    & aggregate_ (\(post, cTree, tag) ->
+       postAdditionalPhoto <- oneToMany_ (_dbPostAdditionalPhoto newsDb) _postAdditionalPhotoPostId post
+       pure (post, cTree, tag, postAdditionalPhoto)
+    & aggregate_ (\(post, cTree, tag, postAdditionalPhoto) ->
                     ( group_ post
                     , (pgArrayAgg (_categoryId cTree), pgArrayAgg (_categoryName cTree))
-                    , (pgArrayAgg (_tagId tag), pgArrayAgg (_tagName tag))))
+                    , (pgArrayAgg (_tagId tag), pgArrayAgg (_tagName tag))
+                    , pgArrayAgg (unPhotoId (_postAdditionalPhotoPhotoId postAdditionalPhoto))))
 
 categoriesWithTrees :: DbWith (DbQ s (CategoryT (DbQExpr s), DbQExpr s (Vector Int32), DbQExpr s (Vector Text)))
 categoriesWithTrees = do
