@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bdfd176875d57330e2e4701844870baf7848665cbeae638f7757c8020d75355c
+-- hash: 799b4c762d0f0069647b55bd594d2434a112dc1d22b238e656a0f8ba802126b3
 
 name:           haskell-news-server
 version:        0.1.0.0
@@ -29,7 +29,15 @@ library
   exposed-modules:
       BeamSchema
       Lib
-      Queries
+      Queries.Author
+      Queries.Category
+      Queries.Commentary
+      Queries.Draft
+      Queries.Photo
+      Queries.Post
+      Queries.Tag
+      Queries.User
+      Queries.Util
   other-modules:
       Paths_haskell_news_server
   hs-source-dirs:

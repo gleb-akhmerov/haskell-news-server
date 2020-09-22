@@ -1,0 +1,142 @@
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE TypeFamilies #-}
+
+module Queries.Draft where
+
+
+import Control.Monad (forM, when)
+import Control.Monad.Trans.Class (lift)
+import Control.Monad.Trans.Except (ExceptT, throwE)
+import Data.ByteString (ByteString)
+import Data.Int (Int32)
+import Data.Maybe (isNothing)
+import Data.Text (Text)
+
+import Database.Beam
+import Database.Beam.Backend.SQL.BeamExtensions
+import Database.Beam.Postgres
+
+import BeamSchema
+import Queries.Photo
+
+
+data CreateDraft = CreateDraft
+  { cDraftShortName :: Text
+  , cDraftAuthorId :: Int32
+  , cDraftCategoryId :: Int32
+  , cDraftTextContent :: Text
+  , cDraftMainPhoto :: ByteString
+  , cDraftAdditionalPhotos :: [ByteString]
+  , cDraftTagIds :: [Int32]
+  }
+
+createDraft :: CreateDraft -> ExceptT String Pg ()
+createDraft cd = do
+  _ <- do mAuthor <- runSelectReturningOne $ select $
+            filter_ (\a -> authorId a ==. val_ (cDraftAuthorId cd))
+                    (all_ (dbAuthor newsDb))
+          when (isNothing mAuthor) $
+            throwE $ "Author with id doesn't exist: " ++ show (cDraftAuthorId cd)
+
+          mCategory <- runSelectReturningOne $ select $
+            filter_ (\c -> categoryId c ==. val_ (cDraftCategoryId cd))
+                    (all_ (dbCategory newsDb))
+          when (isNothing mCategory) $
+            throwE $ "Category with id doesn't exist: " ++ show (cDraftCategoryId cd)
+
+          forM (cDraftTagIds cd) $ \tId -> do
+            mTag <- runSelectReturningOne $ select $
+              filter_ (\t -> tagId t ==. val_ tId)
+                      (all_ (dbTag newsDb))
+            when (isNothing mTag) $
+              throwE $ "Tag with id doesn't exist: " ++ show tId
+
+  let photoToRow p =
+        Photo
+          { photoId      = default_
+          , photoContent = val_ p
+          }
+  [mainPhoto] <- runInsertReturningList $ insert (dbPhoto newsDb) $
+    insertExpressions [photoToRow (cDraftMainPhoto cd)]
+  additionalPhotos <- runInsertReturningList $ insert (dbPhoto newsDb) $
+    insertExpressions (map photoToRow (cDraftAdditionalPhotos cd))
+
+  [draft] <- runInsertReturningList $ insert (dbDraft newsDb) $
+    insertExpressions
+      [ Draft
+          { draftId          = default_
+          , draftShortName   = val_ (cDraftShortName cd)
+          , draftCreatedAt   = now_
+          , draftAuthorId    = val_ (cDraftAuthorId cd)
+          , draftCategoryId  = val_ (cDraftCategoryId cd)
+          , draftTextContent = val_ (cDraftTextContent cd)
+          , draftMainPhotoId = val_ (photoId mainPhoto)
+          }
+      ]
+
+  let additionalPhotoToRow p =
+        DraftAdditionalPhoto
+          { draftAdditionalPhotoPhotoId = photoId p
+          , draftAdditionalPhotoDraftId = draftId draft
+          }
+  runInsert $ insert (dbDraftAdditionalPhoto newsDb) $
+    insertValues (map additionalPhotoToRow additionalPhotos)
+
+  let tagToRow tId =
+        DraftTag
+          { draftTagTagId   = tId
+          , draftTagDraftId = draftId draft
+          }
+  runInsert $ insert (dbDraftTag newsDb) $
+    insertValues (map tagToRow (cDraftTagIds cd))
+
+
+publishDraft :: Int32 -> ExceptT String Pg ()
+publishDraft dId = do
+  mDraft <- runSelectReturningOne $ select $
+    filter_ (\d -> draftId d ==. val_ dId) (all_ (dbDraft newsDb))
+  case mDraft of
+    Nothing ->
+      throwE $ "Draft with id doesn't exist: " ++ show dId
+    Just draft -> do
+      let newPost :: PostT (QExpr Postgres s)
+          newPost =
+            Post
+              { postId          = val_ (draftId draft)
+              , postShortName   = val_ (draftShortName draft)
+              , postPublishedAt = now_
+              , postAuthorId    = val_ (draftAuthorId draft)
+              , postCategoryId  = val_ (draftCategoryId draft)
+              , postTextContent = val_ (draftTextContent draft)
+              , postMainPhotoId = val_ (draftMainPhotoId draft)
+              }
+      [insertedPost] <- runInsertReturningList $ insertOnConflict (dbPost newsDb)
+        (insertExpressions [newPost])
+        (conflictingFields postId)
+        (onConflictUpdateSet (\fields _oldValues -> fields <-. newPost))
+
+      runDelete $ delete (dbPostTag newsDb)
+        (\pt -> postTagPostId pt ==. val_ (postId insertedPost))
+      draftTags <- runSelectReturningList $ select $
+        join_ (dbDraftTag newsDb) (\dt -> draftTagDraftId dt ==. val_ (draftId draft))
+      let draftTagToRow draftTag =
+            PostTag
+              { postTagTagId  = draftTagTagId draftTag
+              , postTagPostId = draftId draft
+              }
+      runInsert $ insert (dbPostTag newsDb) $
+        insertValues (map draftTagToRow draftTags)
+
+      runDelete $ delete (dbPostAdditionalPhoto newsDb)
+        (\pap -> postAdditionalPhotoPostId pap ==. val_ (postId insertedPost))
+      draftPhotos <- runSelectReturningList $ select $
+        join_ (dbDraftAdditionalPhoto newsDb) (\dap -> draftAdditionalPhotoDraftId dap ==. (val_ (draftId draft)))
+      let draftAdditionalPhotoToRow dap =
+            PostAdditionalPhoto
+              { postAdditionalPhotoPhotoId = draftAdditionalPhotoPhotoId dap
+              , postAdditionalPhotoPostId  = draftId draft
+              }
+      runInsert $ insert (dbPostAdditionalPhoto newsDb) $
+        insertValues (map draftAdditionalPhotoToRow draftPhotos)
+
+      lift $ deleteOrphanedPhotos

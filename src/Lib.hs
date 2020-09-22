@@ -17,7 +17,11 @@ import Database.Beam hiding (date)
 import Database.Beam.Postgres
 
 import BeamSchema
-import Queries
+import Queries.Category
+import Queries.Photo
+import Queries.Post
+import Queries.User
+import Queries.Util
 
 data PostFilter
   = PfPublishedAt LocalTime
