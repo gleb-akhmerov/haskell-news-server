@@ -22,7 +22,7 @@ data UserT f = User
   { userId        :: C f Int32
   , userFirstName :: C f Text
   , userLastName  :: C f Text
-  , userAvatar    :: C f ByteString
+  , userAvatarId  :: C f Int32
   , userCreatedAt :: C f LocalTime
   , userIsAdmin   :: C f Bool
   }

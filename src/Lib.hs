@@ -20,7 +20,6 @@ import BeamSchema
 import Queries.Author
 import Queries.Category
 import Queries.Draft
-import Queries.Photo
 import Queries.Post
 import Queries.Tag
 import Queries.User
@@ -114,12 +113,14 @@ data PostOrderBy
 
 someFunc :: IO ()
 someFunc = do
-  migrationSql <- readFile "migrations/1.sql"
+  migration1 <- fromString <$> readFile "migrations/1.sql"
+  migration2 <- fromString <$> readFile "migrations/2.sql"
   conn <- connectPostgreSQL "host='localhost' port='5432' dbname='haskell-news-server' user='postgres'"
   begin conn
-  print =<< execute_ conn (fromString migrationSql)
-  runBeamPostgresDebug putStrLn conn $ runInsert $
-    insert (dbCategory newsDb) $
+  print =<< execute_ conn migration1
+  print =<< execute_ conn migration2
+  runBeamPostgresDebug putStrLn conn $ do
+    runInsert $ insert (dbCategory newsDb) $
       insertValues
         [ Category 1 Nothing "Programming Languages"
         , Category 2 (Just 1) "Python"
@@ -128,7 +129,7 @@ someFunc = do
         , Category 5 (Just 1) "C"
         , Category 6 Nothing "D"
         ]
-  runBeamPostgresDebug putStrLn conn $ do
+
     do xs <- runSelectReturningList $ selectWith withCategoryTree
        mapM_ (liftIO . putStrLn . show) xs
 
@@ -138,10 +139,13 @@ someFunc = do
     do xs <- runSelectReturningList $ selectWith postsWithCategories
        mapM_ (liftIO . putStrLn . show) xs
 
-    userId <- createUser CreateUser
+    runInsert $ insert (dbPhoto newsDb) $
+      insertExpressions [Photo { photoId = default_, photoContent = val_ "" }]
+
+    Right userId <- createUser CreateUser
                 { cUserFirstName = "John"
                 , cUserLastName = "Doe"
-                , cUserAvatar = ""
+                , cUserAvatarId = 1
                 , cUserIsAdmin = False
                 }
     Right authorId <- createAuthor CreateAuthor
@@ -151,27 +155,14 @@ someFunc = do
     do xs <- runSelectReturningList $ select $ all_ (dbUser newsDb)
        mapM_ (liftIO . putStrLn . show) xs
 
-    runInsert $ insert (dbPhoto newsDb) $
-      insertExpressions
-        [ Photo
-            { photoId      = default_
-            , photoContent = val_ ""
-            }
-        ]
-    do xs <- runSelectReturningList $ select $ all_ (dbPhoto newsDb)
-       mapM_ (liftIO . print) xs
-    deleteOrphanedPhotos
-    do xs <- runSelectReturningList $ select $ all_ (dbPhoto newsDb)
-       mapM_ (liftIO . print) xs
-
     tagId <- createTag CreateTag { cTagName = "A" }
     do x <- createDraft CreateDraft
               { cDraftShortName = ""
               , cDraftAuthorId = authorId
               , cDraftCategoryId = 1
               , cDraftTextContent = ""
-              , cDraftMainPhoto = ""
-              , cDraftAdditionalPhotos = []
+              , cDraftMainPhotoId = 1
+              , cDraftAdditionalPhotoIds = []
               , cDraftTagIds = [tagId]
               }
        case x of
