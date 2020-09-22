@@ -63,7 +63,7 @@ applyOneFilterToQuery flt withQuery = do
         PfAuthorName firstName lastName ->
           _usrFirstName user ==. val_ firstName &&. _usrLastName user ==. val_ lastName
         PfCategoryId cId ->
-          _postCategoryId post ==. val_ (CategoryId cId)
+          _postCategoryId post ==. val_ cId
         PfTagId tId ->
           val_ (Vector.fromList [tId]) `isSubsetOf_` tagIds
         PfTagIdsIn tIds ->
@@ -114,12 +114,12 @@ someFunc = do
   runBeamPostgresDebug putStrLn conn $ runInsert $
     insert (_dbCategory newsDb) $
       insertValues
-        [ Category 4 (CategoryId Nothing) "Programming Languages"
-        , Category 5 (CategoryId (Just 4)) "Python"
-        , Category 6 (CategoryId (Just 5)) "A"
-        , Category 7 (CategoryId (Just 5)) "B"
-        , Category 8 (CategoryId (Just 4)) "C"
-        , Category 9 (CategoryId Nothing) "D"
+        [ Category 4 Nothing "Programming Languages"
+        , Category 5 (Just 4) "Python"
+        , Category 6 (Just 5) "A"
+        , Category 7 (Just 5) "B"
+        , Category 8 (Just 4) "C"
+        , Category 9 Nothing "D"
         ]
   runBeamPostgresDebug putStrLn conn $ do
     do xs <- runSelectReturningList $ selectWith withCategoryTree

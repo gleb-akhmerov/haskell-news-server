@@ -29,14 +29,14 @@ data UsrT f = Usr
   deriving (Generic, Beamable)
 
 data AuthorT f = Author
-  { _authorId               :: PrimaryKey UsrT f
+  { _authorId               :: C f Int32
   , _authorShortDescription :: C f Text
   }
   deriving (Generic, Beamable)
 
 data CategoryT f = Category
   { _categoryId       :: C f Int32
-  , _categoryParentId :: PrimaryKey CategoryT (Nullable f)
+  , _categoryParentId :: C f (Maybe Int32)
   , _categoryName     :: C f Text
   }
   deriving (Generic, Beamable)
@@ -51,21 +51,21 @@ data DraftT f = Draft
   { _draftId          :: C f Int32
   , _draftShortName   :: C f Text
   , _draftCreatedAt   :: C f LocalTime
-  , _draftAuthorId    :: PrimaryKey AuthorT f
-  , _draftCategoryId  :: PrimaryKey CategoryT f
+  , _draftAuthorId    :: C f Int32
+  , _draftCategoryId  :: C f Int32
   , _draftTextContent :: C f Text
-  , _draftMainPhotoId :: PrimaryKey PhotoT f
+  , _draftMainPhotoId :: C f Int32
   }
   deriving (Generic, Beamable)
 
 data PostT f = Post
-  { _postId          :: PrimaryKey DraftT f
+  { _postId          :: C f Int32
   , _postShortName   :: C f Text
   , _postPublishedAt :: C f LocalTime
-  , _postAuthorId    :: PrimaryKey AuthorT f
-  , _postCategoryId  :: PrimaryKey CategoryT f
+  , _postAuthorId    :: C f Int32
+  , _postCategoryId  :: C f Int32
   , _postTextContent :: C f Text
-  , _postMainPhotoId :: PrimaryKey PhotoT f
+  , _postMainPhotoId :: C f Int32
   }
   deriving (Generic, Beamable)
 
@@ -76,33 +76,33 @@ data TagT f = Tag
   deriving (Generic, Beamable)
 
 data PostTagT f = PostTag
-  { _postTagTagId  :: PrimaryKey TagT f
-  , _postTagPostId :: PrimaryKey PostT f
+  { _postTagTagId  :: C f Int32
+  , _postTagPostId :: C f Int32
   }
   deriving (Generic, Beamable)
 
 data DraftTagT f = DraftTag
-  { _draftTagTagId   :: PrimaryKey TagT f
-  , _draftTagDraftId :: PrimaryKey DraftT f
+  { _draftTagTagId   :: C f Int32
+  , _draftTagDraftId :: C f Int32
   }
   deriving (Generic, Beamable)
 
 data PostAdditionalPhotoT f = PostAdditionalPhoto
-  { _postAdditionalPhotoPhotoId :: PrimaryKey PhotoT f
-  , _postAdditionalPhotoPostId  :: PrimaryKey PostT f
+  { _postAdditionalPhotoPhotoId :: C f Int32
+  , _postAdditionalPhotoPostId  :: C f Int32
   }
   deriving (Generic, Beamable)
 
 data DraftAdditionalPhotoT f = DraftAdditionalPhoto
-  { _draftAdditionalPhotoPhotoId :: PrimaryKey PhotoT f
-  , _draftAdditionalPhotoDraftId :: PrimaryKey DraftT f
+  { _draftAdditionalPhotoPhotoId :: C f Int32
+  , _draftAdditionalPhotoDraftId :: C f Int32
   }
   deriving (Generic, Beamable)
 
 data CommentaryT f = Commentary
   { _commentaryId      :: C f Int32
-  , _commentaryUserId  :: PrimaryKey UsrT f
-  , _commentaryPostId  :: PrimaryKey PostT f
+  , _commentaryUserId  :: C f Int32
+  , _commentaryPostId  :: C f Int32
   , _commentaryContent :: C f Text
   }
   deriving (Generic, Beamable)
@@ -113,17 +113,17 @@ instance Table UsrT where
   primaryKey = UsrId . _usrId
 
 instance Table AuthorT where
-  data PrimaryKey AuthorT f = AuthorId (PrimaryKey UsrT f)
+  data PrimaryKey AuthorT f = AuthorId (C f Int32)
     deriving (Generic, Beamable)
   primaryKey = AuthorId . _authorId
 
 instance Table CategoryT where
-  data PrimaryKey CategoryT f = CategoryId { unCategoryId :: (C f Int32) }
+  data PrimaryKey CategoryT f = CategoryId (C f Int32)
     deriving (Generic, Beamable)
   primaryKey = CategoryId . _categoryId
 
 instance Table PhotoT where
-  data PrimaryKey PhotoT f = PhotoId { unPhotoId :: (C f Int32) }
+  data PrimaryKey PhotoT f = PhotoId (C f Int32)
     deriving (Generic, Beamable)
   primaryKey = PhotoId . _photoId
 
@@ -133,7 +133,7 @@ instance Table DraftT where
   primaryKey = DraftId . _draftId
 
 instance Table PostT where
-  data PrimaryKey PostT f = PostId (PrimaryKey DraftT f)
+  data PrimaryKey PostT f = PostId (C f Int32)
     deriving (Generic, Beamable)
   primaryKey = PostId . _postId
 
@@ -143,22 +143,22 @@ instance Table TagT where
   primaryKey = TagId . _tagId
 
 instance Table PostTagT where
-  data PrimaryKey PostTagT f = PostTagId (PrimaryKey TagT f) (PrimaryKey PostT f)
+  data PrimaryKey PostTagT f = PostTagId (C f Int32) (C f Int32)
     deriving (Generic, Beamable)
   primaryKey = PostTagId <$> _postTagTagId <*> _postTagPostId
 
 instance Table DraftTagT where
-  data PrimaryKey DraftTagT f = DraftTagId (PrimaryKey TagT f) (PrimaryKey DraftT f)
+  data PrimaryKey DraftTagT f = DraftTagId (C f Int32) (C f Int32)
     deriving (Generic, Beamable)
   primaryKey = DraftTagId <$> _draftTagTagId <*> _draftTagDraftId
 
 instance Table PostAdditionalPhotoT where
-  data PrimaryKey PostAdditionalPhotoT f = PostAdditionalPhotoId (PrimaryKey PhotoT f) (PrimaryKey PostT f)
+  data PrimaryKey PostAdditionalPhotoT f = PostAdditionalPhotoId (C f Int32) (C f Int32)
     deriving (Generic, Beamable)
   primaryKey = PostAdditionalPhotoId <$> _postAdditionalPhotoPhotoId <*> _postAdditionalPhotoPostId
 
 instance Table DraftAdditionalPhotoT where
-  data PrimaryKey DraftAdditionalPhotoT f = DraftAdditionalPhotoId (PrimaryKey PhotoT f) (PrimaryKey DraftT f)
+  data PrimaryKey DraftAdditionalPhotoT f = DraftAdditionalPhotoId (C f Int32) (C f Int32)
     deriving (Generic, Beamable)
   primaryKey = DraftAdditionalPhotoId <$> _draftAdditionalPhotoPhotoId <*> _draftAdditionalPhotoDraftId
 
@@ -226,32 +226,16 @@ data NewsDb f = NewsDb
 newsDb :: DatabaseSettings be NewsDb
 newsDb = defaultDbSettings `withDbModification`
   dbModification
-    { _dbAuthor = modifyTableFields tableModification
-        { _authorId = UsrId "id" }
-    , _dbCategory = modifyTableFields tableModification
-        { _categoryParentId = CategoryId "parent_id" }
-    , _dbDraft = modifyTableFields tableModification
-        { _draftAuthorId = AuthorId (UsrId "author_id")
-        , _draftCategoryId = CategoryId "category_id"
-        , _draftMainPhotoId = PhotoId "main_photo_id" }
-    , _dbPost = modifyTableFields tableModification
-        { _postId = DraftId "id"
-        , _postAuthorId = AuthorId (UsrId "author_id")
-        , _postCategoryId = CategoryId "category_id"
-        , _postMainPhotoId = PhotoId "main_photo_id" }
-    , _dbPostTag = modifyTableFields tableModification
-        { _postTagTagId = TagId "tag_id"
-        , _postTagPostId = PostId (DraftId "post_id") }
+    { _dbPostTag = modifyTableFields tableModification
+        { _postTagTagId = "tag_id"
+        , _postTagPostId = "post_id" }
     , _dbDraftTag = modifyTableFields tableModification
-        { _draftTagTagId = TagId "tag_id"
-        , _draftTagDraftId = DraftId "draft_id" }
+        { _draftTagTagId = "tag_id"
+        , _draftTagDraftId = "draft_id" }
     , _dbPostAdditionalPhoto = modifyTableFields tableModification
-        { _postAdditionalPhotoPhotoId = PhotoId "photo_id"
-        , _postAdditionalPhotoPostId = PostId (DraftId "post_id") }
+        { _postAdditionalPhotoPhotoId = "photo_id"
+        , _postAdditionalPhotoPostId = "post_id" }
     , _dbDraftAdditionalPhoto = modifyTableFields tableModification
-        { _draftAdditionalPhotoPhotoId = PhotoId "photo_id"
-        , _draftAdditionalPhotoDraftId = DraftId "post_id" }
-    , _dbCommentary = modifyTableFields tableModification
-        { _commentaryUserId = UsrId "user_id"
-        , _commentaryPostId = PostId (DraftId "post_id") }
+        { _draftAdditionalPhotoPhotoId = "photo_id"
+        , _draftAdditionalPhotoDraftId = "post_id" }
     }
