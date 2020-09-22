@@ -6,8 +6,7 @@ module Queries.Draft where
 
 import Control.Monad (when, unless)
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.Except (runExceptT, throwE)
-import Data.ByteString (ByteString)
+import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
 import Data.Int (Int32)
 import Data.Maybe (isJust)
 import Data.Text (Text)
@@ -27,8 +26,8 @@ data CreateDraft = CreateDraft
   , cDraftAuthorId :: Int32
   , cDraftCategoryId :: Int32
   , cDraftTextContent :: Text
-  , cDraftMainPhoto :: ByteString
-  , cDraftAdditionalPhotos :: [ByteString]
+  , cDraftMainPhotoId :: Int32
+  , cDraftAdditionalPhotoIds :: [Int32]
   , cDraftTagIds :: [Int32]
   }
 
@@ -36,24 +35,9 @@ createDraft :: CreateDraft -> Pg (Either String Int32)
 createDraft cd = runExceptT $ do
   makeSureEntityExists "Author" (dbAuthor newsDb) authorId (cDraftAuthorId cd)
   makeSureEntityExists "Category" (dbCategory newsDb) categoryId (cDraftCategoryId cd)
-  unless (null (cDraftTagIds cd)) $ do
-    tagIdsNotInDb <- runSelectReturningList $ select $ do
-      cdTagId <- pgUnnestArray (val_ (Vector.fromList (cDraftTagIds cd)))
-      tag <- leftJoin_ (all_ (dbTag newsDb)) (\t -> tagId t ==. cdTagId)
-      guard_ (isNothing_ (tagId tag))
-      pure cdTagId
-    unless (null tagIdsNotInDb) $
-      throwE $ "Tags with ids don't exist: " ++ show tagIdsNotInDb
-
-  let photoToRow p =
-        Photo
-          { photoId      = default_
-          , photoContent = val_ p
-          }
-  [mainPhoto] <- runInsertReturningList $ insert (dbPhoto newsDb) $
-    insertExpressions [photoToRow (cDraftMainPhoto cd)]
-  additionalPhotos <- runInsertReturningList $ insert (dbPhoto newsDb) $
-    insertExpressions (map photoToRow (cDraftAdditionalPhotos cd))
+  makeSureEntityExists "Photo" (dbPhoto newsDb) photoId (cDraftMainPhotoId cd)
+  makeSureTagsExist (cDraftTagIds cd)
+  makeSurePhotosExist (cDraftAdditionalPhotoIds cd)
 
   [draft] <- runInsertReturningList $ insert (dbDraft newsDb) $
     insertExpressions
@@ -64,17 +48,17 @@ createDraft cd = runExceptT $ do
           , draftAuthorId    = val_ (cDraftAuthorId cd)
           , draftCategoryId  = val_ (cDraftCategoryId cd)
           , draftTextContent = val_ (cDraftTextContent cd)
-          , draftMainPhotoId = val_ (photoId mainPhoto)
+          , draftMainPhotoId = val_ (cDraftMainPhotoId cd)
           }
       ]
 
-  let additionalPhotoToRow p =
+  let additionalPhotoToRow pId =
         DraftAdditionalPhoto
-          { draftAdditionalPhotoPhotoId = photoId p
+          { draftAdditionalPhotoPhotoId = pId
           , draftAdditionalPhotoDraftId = draftId draft
           }
   runInsert $ insert (dbDraftAdditionalPhoto newsDb) $
-    insertValues (map additionalPhotoToRow additionalPhotos)
+    insertValues (map additionalPhotoToRow (cDraftAdditionalPhotoIds cd))
 
   let tagToRow tId =
         DraftTag
@@ -146,8 +130,8 @@ data UpdateDraft = UpdateDraft
   , uDraftNewAuthorId :: Maybe Int32
   , uDraftNewCategoryId :: Maybe Int32
   , uDraftNewTextContent :: Maybe Text
-  , uDraftNewMainPhoto :: Maybe ByteString
-  , uDraftNewAdditionalPhotos :: Maybe [ByteString]
+  , uDraftNewMainPhotoId :: Maybe Int32
+  , uDraftNewAdditionalPhotoIds :: Maybe [Int32]
   , uDraftNewTagIds :: Maybe [Int32]
   }
 
@@ -172,28 +156,19 @@ updateDraft ud = runExceptT $ do
     Nothing ->
       pure ()
     Just newTagIds ->
-      unless (null newTagIds) $ do
-        tagIdsNotInDb <- runSelectReturningList $ select $ do
-          cdTagId <- pgUnnestArray (val_ (Vector.fromList newTagIds))
-          tag <- leftJoin_ (all_ (dbTag newsDb)) (\t -> tagId t ==. cdTagId)
-          guard_ (isNothing_ (tagId tag))
-          pure cdTagId
-        unless (null tagIdsNotInDb) $
-          throwE $ "Tags with ids don't exist: " ++ show tagIdsNotInDb
+      makeSureTagsExist newTagIds
 
-  let photoToRow p =
-        Photo
-          { photoId      = default_
-          , photoContent = val_ p
-          }
-
-  mMainPhoto <- case uDraftNewMainPhoto ud of
+  case uDraftNewMainPhotoId ud of
     Nothing ->
-      pure Nothing
-    Just newMainPhoto -> do
-      [mainPhoto] <- runInsertReturningList $ insert (dbPhoto newsDb) $
-        insertExpressions [photoToRow newMainPhoto]
-      pure (Just mainPhoto)
+      pure ()
+    Just newMainPhotoId ->
+      makeSureEntityExists "Photo" (dbPhoto newsDb) photoId newMainPhotoId
+
+  case uDraftNewAdditionalPhotoIds ud of
+    Nothing ->
+      pure ()
+    Just newAdditionalPhotoIds ->
+      makeSurePhotosExist newAdditionalPhotoIds
 
   runUpdate $ update (dbDraft newsDb)
                      (\d ->
@@ -201,24 +176,22 @@ updateDraft ud = runExceptT $ do
                        <> maybeAssignment (uDraftNewAuthorId    ud) (\x -> draftAuthorId    d <-. val_ x)
                        <> maybeAssignment (uDraftNewCategoryId  ud) (\x -> draftCategoryId  d <-. val_ x)
                        <> maybeAssignment (uDraftNewTextContent ud) (\x -> draftTextContent d <-. val_ x)
-                       <> maybeAssignment (fmap photoId mMainPhoto) (\x -> draftMainPhotoId d <-. val_ x))
+                       <> maybeAssignment (uDraftNewMainPhotoId ud) (\x -> draftMainPhotoId d <-. val_ x))
                      (\d -> draftId d ==. val_ (uDraftId ud))
 
-  case uDraftNewAdditionalPhotos ud of
+  case uDraftNewAdditionalPhotoIds ud of
     Nothing ->
       pure ()
-    Just newAdditionalPhotos -> do
+    Just newAdditionalPhotoIds -> do
       runDelete $ delete (dbDraftAdditionalPhoto newsDb)
         (\dap -> draftAdditionalPhotoDraftId dap ==. val_ (uDraftId ud))
-      additionalPhotos <- runInsertReturningList $ insert (dbPhoto newsDb) $
-        insertExpressions (map photoToRow newAdditionalPhotos)
-      let additionalPhotoToRow p =
+      let additionalPhotoToRow pId =
             DraftAdditionalPhoto
-              { draftAdditionalPhotoPhotoId = photoId p
+              { draftAdditionalPhotoPhotoId = pId
               , draftAdditionalPhotoDraftId = uDraftId ud
               }
       runInsert $ insert (dbDraftAdditionalPhoto newsDb) $
-        insertValues (map additionalPhotoToRow additionalPhotos)
+        insertValues (map additionalPhotoToRow newAdditionalPhotoIds)
 
   case uDraftNewTagIds ud of
     Nothing ->
@@ -234,5 +207,29 @@ updateDraft ud = runExceptT $ do
       runInsert $ insert (dbDraftTag newsDb) $
         insertValues (map tagToRow newTagIds)
 
-  when (isJust (uDraftNewMainPhoto ud) || isJust (uDraftNewAdditionalPhotos ud)) $
+  when (isJust (uDraftNewMainPhotoId ud) || isJust (uDraftNewAdditionalPhotoIds ud)) $
     lift $ deleteOrphanedPhotos
+
+
+makeSureTagsExist :: [Int32] -> ExceptT String Pg ()
+makeSureTagsExist tagIds =
+  unless (null tagIds) $ do
+    tagIdsNotInDb <- runSelectReturningList $ select $ do
+      cdTagId <- pgUnnestArray (val_ (Vector.fromList tagIds))
+      tag <- leftJoin_ (all_ (dbTag newsDb)) (\t -> tagId t ==. cdTagId)
+      guard_ (isNothing_ (tagId tag))
+      pure cdTagId
+    unless (null tagIdsNotInDb) $
+      throwE $ "Tags with ids don't exist: " ++ show tagIdsNotInDb
+
+
+makeSurePhotosExist :: [Int32] -> ExceptT String Pg ()
+makeSurePhotosExist photoIds =
+  unless (null photoIds) $ do
+    photoIdsNotInDb <- runSelectReturningList $ select $ do
+      cdAdditionalPhotoId <- pgUnnestArray (val_ (Vector.fromList photoIds))
+      photo <- leftJoin_ (all_ (dbPhoto newsDb)) (\p -> photoId p ==. cdAdditionalPhotoId)
+      guard_ (isNothing_ (photoId photo))
+      pure cdAdditionalPhotoId
+    unless (null photoIdsNotInDb) $
+      throwE $ "Photos with ids don't exist: " ++ show photoIdsNotInDb
