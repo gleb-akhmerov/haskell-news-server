@@ -21,8 +21,10 @@ description:         Please see the README on GitHub at <https://github.com/gleb
 
 default-extensions:
 - ScopedTypeVariables
+- RecordWildCards
 
 dependencies:
+- aeson
 - base >= 4.7 && < 5
 - bytestring
 - beam-core
@@ -32,6 +34,7 @@ dependencies:
 - text
 - time
 - transformers
+- unordered-containers
 - vector
 
 library:

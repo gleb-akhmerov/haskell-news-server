@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE TypeApplications #-}
 
@@ -6,15 +7,18 @@ module Queries.Category where
 
 import Control.Monad.Trans.Except (runExceptT)
 import Data.Function ((&))
+import qualified Data.HashMap.Strict as H
 import Data.Int (Int32)
 import Data.Text (Text)
 import Data.Vector (Vector)
 
+import Data.Aeson
 import Database.Beam
 import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
 
 import BeamSchema
+import MaybeOrUnspecified
 import Queries.Util
 
 
@@ -37,17 +41,29 @@ createCategory cc = do
 
 data UpdateCategory = UpdateCategory
   { uCategoryId :: Int32
-  , uCategoryNewParentId :: Maybe (Maybe Int32)
+  , uCategoryNewParentId :: MaybeOrUnspecified Int32
   , uCategoryNewName :: Maybe Text
   }
+  deriving Show
+
+instance FromJSON UpdateCategory where
+  parseJSON = withObject "UpdateCategory" $ \v -> do
+                uCategoryId <- v .: "id"
+                uCategoryNewParentId <- case H.lookup "new_parent_id" v of
+                  Nothing -> pure Unspecified
+                  Just a  -> Specified <$> parseJSON a
+                uCategoryNewName <- v .:? "new_name"
+                return UpdateCategory {..}
 
 updateCategory :: UpdateCategory -> Pg (Either String ())
 updateCategory uc = runExceptT $ do
   makeSureEntityExists "Category" (dbCategory newsDb) categoryId (uCategoryId uc)
   runUpdate $ update (dbCategory newsDb)
                      (\c ->
-                          maybeAssignment (uCategoryNewParentId uc) (\x -> categoryParentId c <-. val_ x)
-                       <> maybeAssignment (uCategoryNewName     uc) (\x -> categoryName     c <-. val_ x))
+                          maybeAssignment (uCategoryNewName     uc) (\x -> categoryName     c <-. val_ x)
+                       <> case uCategoryNewParentId uc of
+                            Unspecified -> mempty
+                            Specified newParentId -> categoryParentId c <-. val_ newParentId)
                      (\c -> categoryId c ==. val_ (uCategoryId uc))
 
 

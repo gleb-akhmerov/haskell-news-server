@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 799b4c762d0f0069647b55bd594d2434a112dc1d22b238e656a0f8ba802126b3
+-- hash: 07d3630cb501f21e56a2d1f3d8b402f3337a804dde9e12ac3b43ba7a4bfcf4fe
 
 name:           haskell-news-server
 version:        0.1.0.0
@@ -29,6 +29,7 @@ library
   exposed-modules:
       BeamSchema
       Lib
+      MaybeOrUnspecified
       Queries.Author
       Queries.Category
       Queries.Commentary
@@ -42,10 +43,11 @@ library
       Paths_haskell_news_server
   hs-source-dirs:
       src
-  default-extensions: ScopedTypeVariables
+  default-extensions: ScopedTypeVariables RecordWildCards
   ghc-options: -Wall
   build-depends:
-      base >=4.7 && <5
+      aeson
+    , base >=4.7 && <5
     , beam-core
     , beam-postgres
     , bytestring
@@ -54,6 +56,7 @@ library
     , text
     , time
     , transformers
+    , unordered-containers
     , vector
   default-language: Haskell2010
 
@@ -63,10 +66,11 @@ executable haskell-news-server-exe
       Paths_haskell_news_server
   hs-source-dirs:
       app
-  default-extensions: ScopedTypeVariables
+  default-extensions: ScopedTypeVariables RecordWildCards
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
   build-depends:
-      base >=4.7 && <5
+      aeson
+    , base >=4.7 && <5
     , beam-core
     , beam-postgres
     , bytestring
@@ -76,6 +80,7 @@ executable haskell-news-server-exe
     , text
     , time
     , transformers
+    , unordered-containers
     , vector
   default-language: Haskell2010
 
@@ -86,10 +91,11 @@ test-suite haskell-news-server-test
       Paths_haskell_news_server
   hs-source-dirs:
       test
-  default-extensions: ScopedTypeVariables
+  default-extensions: ScopedTypeVariables RecordWildCards
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
   build-depends:
-      base >=4.7 && <5
+      aeson
+    , base >=4.7 && <5
     , beam-core
     , beam-postgres
     , bytestring
@@ -100,5 +106,6 @@ test-suite haskell-news-server-test
     , text
     , time
     , transformers
+    , unordered-containers
     , vector
   default-language: Haskell2010
