@@ -138,18 +138,16 @@ someFunc = do
     do xs <- runSelectReturningList $ selectWith postsWithCategories
        mapM_ (liftIO . putStrLn . show) xs
 
-    userId <- createUser
-      CreateUser
-        { cUserFirstName = "John"
-        , cUserLastName = "Doe"
-        , cUserAvatar = ""
-        , cUserIsAdmin = False
-        }
-    Right authorId <- createAuthor
-      CreateAuthor
-        { cAuthorUserId = userId
-        , cAuthorShortDescription = ""
-        }
+    userId <- createUser CreateUser
+                { cUserFirstName = "John"
+                , cUserLastName = "Doe"
+                , cUserAvatar = ""
+                , cUserIsAdmin = False
+                }
+    Right authorId <- createAuthor CreateAuthor
+                        { cAuthorUserId = userId
+                        , cAuthorShortDescription = ""
+                        }
     do xs <- runSelectReturningList $ select $ all_ (dbUser newsDb)
        mapM_ (liftIO . putStrLn . show) xs
 
@@ -166,15 +164,15 @@ someFunc = do
     do xs <- runSelectReturningList $ select $ all_ (dbPhoto newsDb)
        mapM_ (liftIO . print) xs
 
-    tagId <- createTag "A"
+    tagId <- createTag CreateTag { cTagName = "A" }
     do x <- createDraft CreateDraft
-                          { cDraftShortName = ""
-                          , cDraftAuthorId = authorId
-                          , cDraftCategoryId = 1
-                          , cDraftTextContent = ""
-                          , cDraftMainPhoto = ""
-                          , cDraftAdditionalPhotos = []
-                          , cDraftTagIds = [tagId]
-                          }
+              { cDraftShortName = ""
+              , cDraftAuthorId = authorId
+              , cDraftCategoryId = 1
+              , cDraftTextContent = ""
+              , cDraftMainPhoto = ""
+              , cDraftAdditionalPhotos = []
+              , cDraftTagIds = [tagId]
+              }
        liftIO $ print x
   rollback conn

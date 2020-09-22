@@ -22,7 +22,7 @@ data CreateAuthor = CreateAuthor
 createAuthor :: CreateAuthor -> Pg (Either String Int32)
 createAuthor ca = runExceptT $ do
   do mUser <- runSelectReturningOne $ select $
-       filter_ (\a -> userId a ==. val_ (cAuthorUserId ca))
+       filter_ (\u -> userId u ==. val_ (cAuthorUserId ca))
                (all_ (dbUser newsDb))
      when (isNothing mUser) $
        throwE $ "User with id doesn't exist: " ++ show (cAuthorUserId ca)
@@ -35,3 +35,21 @@ createAuthor ca = runExceptT $ do
       ]
 
   pure (authorId author)
+
+
+data UpdateAuthor = UpdateAuthor
+  { uAuthorId :: Int32
+  , uAuthorNewShortDescription :: Text
+  }
+
+updateAuthor :: UpdateAuthor -> Pg (Either String ())
+updateAuthor ua = runExceptT $ do
+  mAuthor <- runSelectReturningOne $ select $
+    filter_ (\a -> authorId a ==. val_ (uAuthorId ua))
+            (all_ (dbAuthor newsDb))
+  when (isNothing mAuthor) $
+    throwE $ "Author with id doesn't exist: " ++ show (uAuthorId ua)
+
+  runUpdate $ update (dbAuthor newsDb)
+                     (\a -> authorShortDescription a <-. val_ (uAuthorNewShortDescription ua))
+                     (\a -> authorId a ==. val_ (uAuthorId ua))

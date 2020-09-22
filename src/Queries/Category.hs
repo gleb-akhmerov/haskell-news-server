@@ -4,8 +4,11 @@
 module Queries.Category where
 
 
+import Control.Monad (when)
+import Control.Monad.Trans.Except (throwE, runExceptT)
 import Data.Function ((&))
 import Data.Int (Int32)
+import Data.Maybe (isNothing)
 import Data.Text (Text)
 import Data.Vector (Vector)
 
@@ -18,9 +21,9 @@ import Queries.Util
 
 
 data CreateCategory = CreateCategory
- { cCategoryParentId :: Maybe Int32
- , cCategoryName :: Text
- }
+  { cCategoryParentId :: Maybe Int32
+  , cCategoryName :: Text
+  }
 
 createCategory :: CreateCategory -> Pg Int32
 createCategory cc = do
@@ -32,6 +35,28 @@ createCategory cc = do
                  }
       ]
   pure (categoryId category)
+
+
+data UpdateCategory = UpdateCategory
+  { uCategoryId :: Int32
+  , uCategoryNewParentId :: Maybe (Maybe Int32)
+  , uCategoryNewName :: Maybe Text
+  }
+
+updateCategory :: UpdateCategory -> Pg (Either String ())
+updateCategory uc = runExceptT $ do
+  do mCategory <- runSelectReturningOne $ select $
+       filter_ (\c -> categoryId c ==. val_ (uCategoryId uc))
+               (all_ (dbCategory newsDb))
+     when (isNothing mCategory) $
+       throwE $ "Category with id doesn't exist: " ++ show (uCategoryId uc)
+
+  runUpdate $ update (dbCategory newsDb)
+                     (\c ->
+                          maybeAssignment (uCategoryNewParentId uc) (\x -> categoryParentId c <-. val_ x)
+                       <> maybeAssignment (uCategoryNewName     uc) (\x -> categoryName     c <-. val_ x))
+                     (\c -> categoryId c ==. val_ (uCategoryId uc))
+
 
 withCategoryTree :: DbWith (DbQ s (DbQExpr s Int32, CategoryT (DbQExpr s)))
 withCategoryTree = do
@@ -47,6 +72,7 @@ withCategoryTree = do
     (reuse catTree)
       & orderBy_ (\(start, ord, _c) -> (asc_ start, asc_ ord))
       & fmap (\(start, _ord, c) -> (start, c))
+
 
 categoriesWithTrees :: DbWith (DbQ s (CategoryT (DbQExpr s), DbQExpr s (Vector Int32), DbQExpr s (Vector Text)))
 categoriesWithTrees = do
