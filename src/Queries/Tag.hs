@@ -1,10 +1,8 @@
 module Queries.Tag where
 
 
-import Control.Monad (when)
-import Control.Monad.Trans.Except (throwE, runExceptT)
+import Control.Monad.Trans.Except (runExceptT)
 import Data.Int (Int32)
-import Data.Maybe (isNothing)
 import Data.Text (Text)
 
 import Database.Beam
@@ -12,6 +10,7 @@ import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
 
 import BeamSchema
+import Queries.Util
 
 
 data CreateTag = CreateTag
@@ -37,12 +36,7 @@ data UpdateTag = UpdateTag
 
 updateTag :: UpdateTag -> Pg (Either String ())
 updateTag ut = runExceptT $ do
-  do mTag <- runSelectReturningOne $ select $
-       filter_ (\t -> tagId t ==. val_ (uTagId ut))
-               (all_ (dbTag newsDb))
-     when (isNothing mTag) $
-       throwE $ "Tag with id doesn't exist: " ++ show (uTagId ut)
-
+  makeSureEntityExists "Tag" (dbTag newsDb) tagId (uTagId ut)
   runUpdate $ update (dbTag newsDb)
                      (\t -> tagName t <-. val_ (uTagNewName ut))
                      (\t -> tagId t ==. val_ (uTagId ut))

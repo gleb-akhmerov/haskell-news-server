@@ -4,11 +4,9 @@
 module Queries.Category where
 
 
-import Control.Monad (when)
-import Control.Monad.Trans.Except (throwE, runExceptT)
+import Control.Monad.Trans.Except (runExceptT)
 import Data.Function ((&))
 import Data.Int (Int32)
-import Data.Maybe (isNothing)
 import Data.Text (Text)
 import Data.Vector (Vector)
 
@@ -45,12 +43,7 @@ data UpdateCategory = UpdateCategory
 
 updateCategory :: UpdateCategory -> Pg (Either String ())
 updateCategory uc = runExceptT $ do
-  do mCategory <- runSelectReturningOne $ select $
-       filter_ (\c -> categoryId c ==. val_ (uCategoryId uc))
-               (all_ (dbCategory newsDb))
-     when (isNothing mCategory) $
-       throwE $ "Category with id doesn't exist: " ++ show (uCategoryId uc)
-
+  makeSureEntityExists "Category" (dbCategory newsDb) categoryId (uCategoryId uc)
   runUpdate $ update (dbCategory newsDb)
                      (\c ->
                           maybeAssignment (uCategoryNewParentId uc) (\x -> categoryParentId c <-. val_ x)

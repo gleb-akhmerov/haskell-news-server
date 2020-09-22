@@ -1,11 +1,9 @@
 module Queries.User where
 
 
-import Control.Monad (when)
-import Control.Monad.Trans.Except (throwE, runExceptT)
+import Control.Monad.Trans.Except (runExceptT)
 import Data.ByteString (ByteString)
 import Data.Int (Int32)
-import Data.Maybe (isNothing)
 import Data.Text (Text)
 
 import Database.Beam
@@ -48,12 +46,7 @@ data UpdateUser = UpdateUser
 
 updateUser :: UpdateUser -> Pg (Either String ())
 updateUser uu = runExceptT $ do
-  do mUser <- runSelectReturningOne $ select $
-       filter_ (\u -> userId u ==. val_ (uUserId uu))
-               (all_ (dbUser newsDb))
-     when (isNothing mUser) $
-       throwE $ "User with id doesn't exist: " ++ show (uUserId uu)
-
+  makeSureEntityExists "User" (dbUser newsDb) userId (uUserId uu)
   runUpdate $ update (dbUser newsDb)
                      (\u ->
                           maybeAssignment (uUserNewFirstName uu) (\x -> userFirstName u <-. val_ x)

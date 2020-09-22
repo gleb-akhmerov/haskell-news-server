@@ -9,7 +9,7 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Except (runExceptT, throwE)
 import Data.ByteString (ByteString)
 import Data.Int (Int32)
-import Data.Maybe (isJust, isNothing)
+import Data.Maybe (isJust)
 import Data.Text (Text)
 import qualified Data.Vector as Vector (fromList)
 
@@ -34,18 +34,8 @@ data CreateDraft = CreateDraft
 
 createDraft :: CreateDraft -> Pg (Either String Int32)
 createDraft cd = runExceptT $ do
-  do mAuthor <- runSelectReturningOne $ select $
-       filter_ (\a -> authorId a ==. val_ (cDraftAuthorId cd))
-               (all_ (dbAuthor newsDb))
-     when (isNothing mAuthor) $
-       throwE $ "Author with id doesn't exist: " ++ show (cDraftAuthorId cd)
-
-  do mCategory <- runSelectReturningOne $ select $
-       filter_ (\c -> categoryId c ==. val_ (cDraftCategoryId cd))
-               (all_ (dbCategory newsDb))
-     when (isNothing mCategory) $
-       throwE $ "Category with id doesn't exist: " ++ show (cDraftCategoryId cd)
-
+  makeSureEntityExists "Author" (dbAuthor newsDb) authorId (cDraftAuthorId cd)
+  makeSureEntityExists "Category" (dbCategory newsDb) categoryId (cDraftCategoryId cd)
   unless (null (cDraftTagIds cd)) $ do
     tagIdsNotInDb <- runSelectReturningList $ select $ do
       cdTagId <- pgUnnestArray (val_ (Vector.fromList (cDraftTagIds cd)))
@@ -164,44 +154,32 @@ data UpdateDraft = UpdateDraft
 
 updateDraft :: UpdateDraft -> Pg (Either String ())
 updateDraft ud = runExceptT $ do
-  do mDraft <- runSelectReturningOne $ select $
-       filter_ (\d -> draftId d ==. val_ (uDraftId ud))
-               (all_ (dbDraft newsDb))
-     when (isNothing mDraft) $
-       throwE $ "Draft with id doesn't exist: " ++ show (uDraftId ud)
+  makeSureEntityExists "Draft" (dbDraft newsDb) draftId (uDraftId ud)
 
   case uDraftNewAuthorId ud of
     Nothing ->
       pure ()
-    Just newAuthorId -> do
-      mAuthor <- runSelectReturningOne $ select $
-        filter_ (\a -> authorId a ==. val_ newAuthorId)
-                (all_ (dbAuthor newsDb))
-      when (isNothing mAuthor) $
-        throwE $ "Author with id doesn't exist: " ++ show newAuthorId
+    Just newAuthorId ->
+      makeSureEntityExists "Author" (dbAuthor newsDb) authorId newAuthorId
 
   case uDraftNewCategoryId ud of
     Nothing ->
       pure ()
-    Just newCategoryId -> do
-      mCategory <- runSelectReturningOne $ select $
-        filter_ (\c -> categoryId c ==. val_ newCategoryId)
-                (all_ (dbCategory newsDb))
-      when (isNothing mCategory) $
-        throwE $ "Category with id doesn't exist: " ++ show newCategoryId
+    Just newCategoryId ->
+      makeSureEntityExists "Category" (dbCategory newsDb) categoryId newCategoryId
 
   case uDraftNewTagIds ud of
     Nothing ->
       pure ()
     Just newTagIds ->
       unless (null newTagIds) $ do
-         tagIdsNotInDb <- runSelectReturningList $ select $ do
-           cdTagId <- pgUnnestArray (val_ (Vector.fromList newTagIds))
-           tag <- leftJoin_ (all_ (dbTag newsDb)) (\t -> tagId t ==. cdTagId)
-           guard_ (isNothing_ (tagId tag))
-           pure cdTagId
-         unless (null tagIdsNotInDb) $
-           throwE $ "Tags with ids don't exist: " ++ show tagIdsNotInDb
+        tagIdsNotInDb <- runSelectReturningList $ select $ do
+          cdTagId <- pgUnnestArray (val_ (Vector.fromList newTagIds))
+          tag <- leftJoin_ (all_ (dbTag newsDb)) (\t -> tagId t ==. cdTagId)
+          guard_ (isNothing_ (tagId tag))
+          pure cdTagId
+        unless (null tagIdsNotInDb) $
+          throwE $ "Tags with ids don't exist: " ++ show tagIdsNotInDb
 
   let photoToRow p =
         Photo
