@@ -55,15 +55,15 @@ applyOneFilterToQuery flt withQuery = do
     guard_ $
       case flt of
         PfPublishedAt date ->
-          _postPublishedAt post ==. val_ date
+          postPublishedAt post ==. val_ date
         PfPublishedAtLt date ->
-          _postPublishedAt post <. val_ date
+          postPublishedAt post <. val_ date
         PfPublishedAtGt date ->
-          _postPublishedAt post >. val_ date
+          postPublishedAt post >. val_ date
         PfAuthorName firstName lastName ->
-          _userFirstName user ==. val_ firstName &&. _userLastName user ==. val_ lastName
+          userFirstName user ==. val_ firstName &&. userLastName user ==. val_ lastName
         PfCategoryId cId ->
-          _postCategoryId post ==. val_ cId
+          postCategoryId post ==. val_ cId
         PfTagId tId ->
           val_ (Vector.fromList [tId]) `isSubsetOf_` tagIds
         PfTagIdsIn tIds ->
@@ -112,7 +112,7 @@ someFunc = do
   begin conn
   print =<< execute_ conn (fromString migrationSql)
   runBeamPostgresDebug putStrLn conn $ runInsert $
-    insert (_dbCategory newsDb) $
+    insert (dbCategory newsDb) $
       insertValues
         [ Category 4 Nothing "Programming Languages"
         , Category 5 (Just 4) "Python"
@@ -137,19 +137,19 @@ someFunc = do
                  , cUserAvatar = ""
                  , cUserIsAdmin = False
                  }
-    do xs <- runSelectReturningList $ select $ all_ (_dbUser newsDb)
+    do xs <- runSelectReturningList $ select $ all_ (dbUser newsDb)
        mapM_ (liftIO . putStrLn . show) xs
 
-    runInsert $ insert (_dbPhoto newsDb) $
+    runInsert $ insert (dbPhoto newsDb) $
       insertExpressions
         [ Photo
-            { _photoId      = default_
-            , _photoContent = val_ ""
+            { photoId      = default_
+            , photoContent = val_ ""
             }
         ]
-    do xs <- runSelectReturningList $ select $ all_ (_dbPhoto newsDb)
+    do xs <- runSelectReturningList $ select $ all_ (dbPhoto newsDb)
        mapM_ (liftIO . print) xs
     deleteOrphanedPhotos
-    do xs <- runSelectReturningList $ select $ all_ (_dbPhoto newsDb)
+    do xs <- runSelectReturningList $ select $ all_ (dbPhoto newsDb)
        mapM_ (liftIO . print) xs
   rollback conn

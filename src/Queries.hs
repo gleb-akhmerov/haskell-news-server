@@ -30,12 +30,12 @@ type T2 s a b = (DbQExpr s a, DbQExpr s b)
 withCategoryTree :: DbWith (DbQ s (DbQExpr s Int32, CategoryT (DbQExpr s)))
 withCategoryTree = do
   rec catTree <- selecting $
-        (do cat <- all_ (_dbCategory newsDb)
-            pure (_categoryId cat, as_ @Int32 1, cat))
+        (do cat <- all_ (dbCategory newsDb)
+            pure (categoryId cat, as_ @Int32 1, cat))
         `unionAll_`
         (do (start, ord, cat) <- reuse catTree
-            parentCat <- join_ (_dbCategory newsDb)
-                               (\c -> just_ (_categoryId c) ==. _categoryParentId cat)
+            parentCat <- join_ (dbCategory newsDb)
+                               (\c -> just_ (categoryId c) ==. categoryParentId cat)
             pure (start, ord + 1, parentCat))
   pure $
     (reuse catTree)
@@ -53,33 +53,33 @@ postsWithCategories
 postsWithCategories = do
   catTree <- withCategoryTree
   pure $
-    do post <- all_ (_dbPost newsDb)
+    do post <- all_ (dbPost newsDb)
        (start, cTree) <- catTree
-       guard_ (start ==. _postCategoryId post)
-       postTag <- join_ (_dbPostTag newsDb) (\pt -> _postTagPostId pt ==. _postId post)
-       tag <- join_ (_dbTag newsDb) (\t -> _postTagTagId postTag ==. _tagId t)
-       postAdditionalPhoto <- join_ (_dbPostAdditionalPhoto newsDb) (\pap -> _postAdditionalPhotoPostId pap ==. _postId post)
-       user <- join_ (_dbUser newsDb) (\u -> _postAuthorId post ==. _userId u)
+       guard_ (start ==. postCategoryId post)
+       postTag <- join_ (dbPostTag newsDb) (\pt -> postTagPostId pt ==. postId post)
+       tag <- join_ (dbTag newsDb) (\t -> postTagTagId postTag ==. tagId t)
+       postAdditionalPhoto <- join_ (dbPostAdditionalPhoto newsDb) (\pap -> postAdditionalPhotoPostId pap ==. postId post)
+       user <- join_ (dbUser newsDb) (\u -> postAuthorId post ==. userId u)
        pure (post, user, cTree, tag, postAdditionalPhoto)
     & aggregate_ (\(post, user, cTree, tag, postAdditionalPhoto) ->
                     ( group_ post
                     , group_ user
-                    , (pgArrayAgg (_categoryId cTree), pgArrayAgg (_categoryName cTree))
-                    , (pgArrayAgg (_tagId tag), pgArrayAgg (_tagName tag))
-                    , pgArrayAgg (_postAdditionalPhotoPhotoId postAdditionalPhoto)))
+                    , (pgArrayAgg (categoryId cTree), pgArrayAgg (categoryName cTree))
+                    , (pgArrayAgg (tagId tag), pgArrayAgg (tagName tag))
+                    , pgArrayAgg (postAdditionalPhotoPhotoId postAdditionalPhoto)))
 
 categoriesWithTrees :: DbWith (DbQ s (CategoryT (DbQExpr s), DbQExpr s (Vector Int32), DbQExpr s (Vector Text)))
 categoriesWithTrees = do
   catTree <- withCategoryTree
   pure $
-    do cat <- all_ (_dbCategory newsDb)
+    do cat <- all_ (dbCategory newsDb)
        (start, cTree) <- catTree
-       guard_ (start ==. _categoryId cat)
+       guard_ (start ==. categoryId cat)
        pure (cat, cTree)
     & aggregate_ (\(cat, cTree) ->
                     ( group_ cat
-                    , pgArrayAgg (_categoryId cTree)
-                    , pgArrayAgg (_categoryName cTree)))
+                    , pgArrayAgg (categoryId cTree)
+                    , pgArrayAgg (categoryName cTree)))
 
 data CreateUser = CreateUser
   { cUserFirstName :: Text
@@ -90,14 +90,14 @@ data CreateUser = CreateUser
 
 createUser :: CreateUser -> Pg ()
 createUser cu =
-  runInsert $ insert (_dbUser newsDb) $
+  runInsert $ insert (dbUser newsDb) $
     insertExpressions
-      [ User { _userId        = default_
-             , _userFirstName = val_ (cUserFirstName cu)
-             , _userLastName  = val_ (cUserLastName cu)
-             , _userAvatar    = val_ (cUserAvatar cu)
-             , _userCreatedAt = now_
-             , _userIsAdmin   = val_ (cUserIsAdmin cu)
+      [ User { userId        = default_
+             , userFirstName = val_ (cUserFirstName cu)
+             , userLastName  = val_ (cUserLastName cu)
+             , userAvatar    = val_ (cUserAvatar cu)
+             , userCreatedAt = now_
+             , userIsAdmin   = val_ (cUserIsAdmin cu)
              }
       ]
 
@@ -109,15 +109,15 @@ data CreateAuthor = CreateAuthor
 createAuthor :: CreateAuthor -> ExceptT String Pg ()
 createAuthor ca = do
   do mUser <- runSelectReturningOne $ select $
-       filter_ (\a -> _userId a ==. val_ (cAuthorUserId ca))
-               (all_ (_dbUser newsDb))
+       filter_ (\a -> userId a ==. val_ (cAuthorUserId ca))
+               (all_ (dbUser newsDb))
      when (isNothing mUser) $
        throwE $ "User with id doesn't exist: " ++ show (cAuthorUserId ca)
 
-  runInsert $ insert (_dbAuthor newsDb) $
+  runInsert $ insert (dbAuthor newsDb) $
     insertExpressions
-      [ Author { _authorId               = val_ (cAuthorUserId ca)
-               , _authorShortDescription = val_ (cAuthorShortDescription ca)
+      [ Author { authorId               = val_ (cAuthorUserId ca)
+               , authorShortDescription = val_ (cAuthorShortDescription ca)
                }
       ]
 
@@ -128,11 +128,11 @@ data CreateCategory = CreateCategory
 
 createCategory :: CreateCategory -> Pg ()
 createCategory cc =
-  runInsert $ insert (_dbCategory newsDb) $
+  runInsert $ insert (dbCategory newsDb) $
     insertExpressions
-      [ Category { _categoryId       = default_
-                 , _categoryParentId = val_ (cCategoryParentId cc)
-                 , _categoryName     = val_ (cCategoryName cc)
+      [ Category { categoryId       = default_
+                 , categoryParentId = val_ (cCategoryParentId cc)
+                 , categoryName     = val_ (cCategoryName cc)
                  }
       ]
 
@@ -149,70 +149,70 @@ data CreateDraft = CreateDraft
 createDraft :: CreateDraft -> ExceptT String Pg ()
 createDraft cd = do
   _ <- do mAuthor <- runSelectReturningOne $ select $
-            filter_ (\a -> _authorId a ==. val_ (cDraftAuthorId cd))
-                    (all_ (_dbAuthor newsDb))
+            filter_ (\a -> authorId a ==. val_ (cDraftAuthorId cd))
+                    (all_ (dbAuthor newsDb))
           when (isNothing mAuthor) $
             throwE $ "Author with id doesn't exist: " ++ show (cDraftAuthorId cd)
 
           mCategory <- runSelectReturningOne $ select $
-            filter_ (\c -> _categoryId c ==. val_ (cDraftCategoryId cd))
-                    (all_ (_dbCategory newsDb))
+            filter_ (\c -> categoryId c ==. val_ (cDraftCategoryId cd))
+                    (all_ (dbCategory newsDb))
           when (isNothing mCategory) $
             throwE $ "Category with id doesn't exist: " ++ show (cDraftCategoryId cd)
 
           forM (cDraftTagIds cd) $ \tId -> do
             mTag <- runSelectReturningOne $ select $
-              filter_ (\t -> _tagId t ==. val_ tId)
-                      (all_ (_dbTag newsDb))
+              filter_ (\t -> tagId t ==. val_ tId)
+                      (all_ (dbTag newsDb))
             when (isNothing mTag) $
               throwE $ "Tag with id doesn't exist: " ++ show tId
 
   let photoToRow p =
         Photo
-          { _photoId      = default_
-          , _photoContent = val_ p
+          { photoId      = default_
+          , photoContent = val_ p
           }
-  [mainPhoto] <- runInsertReturningList $ insert (_dbPhoto newsDb) $
+  [mainPhoto] <- runInsertReturningList $ insert (dbPhoto newsDb) $
     insertExpressions [photoToRow (cDraftMainPhoto cd)]
-  additionalPhotos <- runInsertReturningList $ insert (_dbPhoto newsDb) $
+  additionalPhotos <- runInsertReturningList $ insert (dbPhoto newsDb) $
     insertExpressions (map photoToRow (cDraftAdditionalPhotos cd))
 
-  [draft] <- runInsertReturningList $ insert (_dbDraft newsDb) $
+  [draft] <- runInsertReturningList $ insert (dbDraft newsDb) $
     insertExpressions
       [ Draft
-          { _draftId          = default_
-          , _draftShortName   = val_ (cDraftShortName cd)
-          , _draftCreatedAt   = now_
-          , _draftAuthorId    = val_ (cDraftAuthorId cd)
-          , _draftCategoryId  = val_ (cDraftCategoryId cd)
-          , _draftTextContent = val_ (cDraftTextContent cd)
-          , _draftMainPhotoId = val_ (_photoId mainPhoto)
+          { draftId          = default_
+          , draftShortName   = val_ (cDraftShortName cd)
+          , draftCreatedAt   = now_
+          , draftAuthorId    = val_ (cDraftAuthorId cd)
+          , draftCategoryId  = val_ (cDraftCategoryId cd)
+          , draftTextContent = val_ (cDraftTextContent cd)
+          , draftMainPhotoId = val_ (photoId mainPhoto)
           }
       ]
 
   let additionalPhotoToRow p =
         DraftAdditionalPhoto
-          { _draftAdditionalPhotoPhotoId = _photoId p
-          , _draftAdditionalPhotoDraftId = _draftId draft
+          { draftAdditionalPhotoPhotoId = photoId p
+          , draftAdditionalPhotoDraftId = draftId draft
           }
-  runInsert $ insert (_dbDraftAdditionalPhoto newsDb) $
+  runInsert $ insert (dbDraftAdditionalPhoto newsDb) $
     insertValues (map additionalPhotoToRow additionalPhotos)
 
   let tagToRow tId =
         DraftTag
-          { _draftTagTagId   = tId
-          , _draftTagDraftId = _draftId draft
+          { draftTagTagId   = tId
+          , draftTagDraftId = draftId draft
           }
-  runInsert $ insert (_dbDraftTag newsDb) $
+  runInsert $ insert (dbDraftTag newsDb) $
     insertValues (map tagToRow (cDraftTagIds cd))
 
 createTag :: Text -> Pg ()
-createTag tagName =
-  runInsert $ insert (_dbTag newsDb) $
+createTag tName =
+  runInsert $ insert (dbTag newsDb) $
     insertExpressions
       [ Tag
-          { _tagId   = default_
-          , _tagName = val_ tagName
+          { tagId   = default_
+          , tagName = val_ tName
           }
       ]
 
@@ -224,75 +224,75 @@ data CreateCommentary = CreateCommentary
 
 createCommentary :: CreateCommentary -> Pg ()
 createCommentary ct =
-  runInsert $ insert (_dbCommentary newsDb) $
+  runInsert $ insert (dbCommentary newsDb) $
     insertExpressions
       [ Commentary
-          { _commentaryId      = default_
-          , _commentaryUserId  = val_ (cCommentaryUserId ct)
-          , _commentaryPostId  = val_ (cCommentaryPostId ct)
-          , _commentaryContent = val_ (cCommentaryContent ct)
+          { commentaryId      = default_
+          , commentaryUserId  = val_ (cCommentaryUserId ct)
+          , commentaryPostId  = val_ (cCommentaryPostId ct)
+          , commentaryContent = val_ (cCommentaryContent ct)
           }
       ]
 
 deleteOrphanedPhotos :: Pg ()
 deleteOrphanedPhotos =
   let usedPhotoIds =
-        (fmap _draftMainPhotoId (all_ (_dbDraft newsDb)))
+        (fmap draftMainPhotoId (all_ (dbDraft newsDb)))
         `union_`
-        (fmap _postMainPhotoId (all_ (_dbPost newsDb)))
+        (fmap postMainPhotoId (all_ (dbPost newsDb)))
         `union_`
-        (fmap _draftAdditionalPhotoPhotoId (all_ (_dbDraftAdditionalPhoto newsDb)))
+        (fmap draftAdditionalPhotoPhotoId (all_ (dbDraftAdditionalPhoto newsDb)))
         `union_`
-        (fmap _postAdditionalPhotoPhotoId (all_ (_dbPostAdditionalPhoto newsDb)))
-  in runDelete $ delete (_dbPhoto newsDb)
-       (\p -> not_ (_photoId p `in_` [subquery_ usedPhotoIds]))
+        (fmap postAdditionalPhotoPhotoId (all_ (dbPostAdditionalPhoto newsDb)))
+  in runDelete $ delete (dbPhoto newsDb)
+       (\p -> not_ (photoId p `in_` [subquery_ usedPhotoIds]))
 
 publishDraft :: Int32 -> ExceptT String Pg ()
-publishDraft draftId = do
+publishDraft dId = do
   mDraft <- runSelectReturningOne $ select $
-    filter_ (\d -> _draftId d ==. val_ draftId) (all_ (_dbDraft newsDb))
+    filter_ (\d -> draftId d ==. val_ dId) (all_ (dbDraft newsDb))
   case mDraft of
     Nothing ->
-      throwE $ "Draft with id doesn't exist: " ++ show draftId
+      throwE $ "Draft with id doesn't exist: " ++ show dId
     Just draft -> do
       let newPost :: PostT (QExpr Postgres s)
           newPost =
             Post
-              { _postId          = val_ (_draftId draft)
-              , _postShortName   = val_ (_draftShortName draft)
-              , _postPublishedAt = now_
-              , _postAuthorId    = val_ (_draftAuthorId draft)
-              , _postCategoryId  = val_ (_draftCategoryId draft)
-              , _postTextContent = val_ (_draftTextContent draft)
-              , _postMainPhotoId = val_ (_draftMainPhotoId draft)
+              { postId          = val_ (draftId draft)
+              , postShortName   = val_ (draftShortName draft)
+              , postPublishedAt = now_
+              , postAuthorId    = val_ (draftAuthorId draft)
+              , postCategoryId  = val_ (draftCategoryId draft)
+              , postTextContent = val_ (draftTextContent draft)
+              , postMainPhotoId = val_ (draftMainPhotoId draft)
               }
-      [insertedPost] <- runInsertReturningList $ insertOnConflict (_dbPost newsDb)
+      [insertedPost] <- runInsertReturningList $ insertOnConflict (dbPost newsDb)
         (insertExpressions [newPost])
-        (conflictingFields _postId)
+        (conflictingFields postId)
         (onConflictUpdateSet (\fields _oldValues -> fields <-. newPost))
 
-      runDelete $ delete (_dbPostTag newsDb)
-        (\pt -> _postTagPostId pt ==. val_ (_postId insertedPost))
+      runDelete $ delete (dbPostTag newsDb)
+        (\pt -> postTagPostId pt ==. val_ (postId insertedPost))
       draftTags <- runSelectReturningList $ select $
-        join_ (_dbDraftTag newsDb) (\dt -> _draftTagDraftId dt ==. val_ (_draftId draft))
+        join_ (dbDraftTag newsDb) (\dt -> draftTagDraftId dt ==. val_ (draftId draft))
       let draftTagToRow draftTag =
             PostTag
-              { _postTagTagId  = _draftTagTagId draftTag
-              , _postTagPostId = _draftId draft
+              { postTagTagId  = draftTagTagId draftTag
+              , postTagPostId = draftId draft
               }
-      runInsert $ insert (_dbPostTag newsDb) $
+      runInsert $ insert (dbPostTag newsDb) $
         insertValues (map draftTagToRow draftTags)
 
-      runDelete $ delete (_dbPostAdditionalPhoto newsDb)
-        (\pap -> _postAdditionalPhotoPostId pap ==. val_ (_postId insertedPost))
+      runDelete $ delete (dbPostAdditionalPhoto newsDb)
+        (\pap -> postAdditionalPhotoPostId pap ==. val_ (postId insertedPost))
       draftPhotos <- runSelectReturningList $ select $
-        join_ (_dbDraftAdditionalPhoto newsDb) (\dap -> _draftAdditionalPhotoDraftId dap ==. (val_ (_draftId draft)))
+        join_ (dbDraftAdditionalPhoto newsDb) (\dap -> draftAdditionalPhotoDraftId dap ==. (val_ (draftId draft)))
       let draftAdditionalPhotoToRow dap =
             PostAdditionalPhoto
-              { _postAdditionalPhotoPhotoId = _draftAdditionalPhotoPhotoId dap
-              , _postAdditionalPhotoPostId  = _draftId draft
+              { postAdditionalPhotoPhotoId = draftAdditionalPhotoPhotoId dap
+              , postAdditionalPhotoPostId  = draftId draft
               }
-      runInsert $ insert (_dbPostAdditionalPhoto newsDb) $
+      runInsert $ insert (dbPostAdditionalPhoto newsDb) $
         insertValues (map draftAdditionalPhotoToRow draftPhotos)
 
       lift $ deleteOrphanedPhotos
