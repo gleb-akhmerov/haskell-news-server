@@ -174,5 +174,8 @@ someFunc = do
               , cDraftAdditionalPhotos = []
               , cDraftTagIds = [tagId]
               }
+       case x of
+         Left _ -> pure ()
+         Right dId -> publishDraft dId >> pure ()
        liftIO $ print x
   rollback conn
