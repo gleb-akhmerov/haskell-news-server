@@ -31,7 +31,7 @@ data CreateDraft = CreateDraft
   , cDraftTagIds :: [Int32]
   }
 
-createDraft :: CreateDraft -> Pg (Either String ())
+createDraft :: CreateDraft -> Pg (Either String Int32)
 createDraft cd = runExceptT $ do
   do mAuthor <- runSelectReturningOne $ select $
        filter_ (\a -> authorId a ==. val_ (cDraftAuthorId cd))
@@ -93,8 +93,10 @@ createDraft cd = runExceptT $ do
   runInsert $ insert (dbDraftTag newsDb) $
     insertValues (map tagToRow (cDraftTagIds cd))
 
+  pure (draftId draft)
 
-publishDraft :: Int32 -> Pg (Either String ())
+
+publishDraft :: Int32 -> Pg (Either String Int32)
 publishDraft dId = runExceptT $ do
   mDraft <- runSelectReturningOne $ select $
     filter_ (\d -> draftId d ==. val_ dId) (all_ (dbDraft newsDb))
@@ -143,3 +145,5 @@ publishDraft dId = runExceptT $ do
         insertValues (map draftAdditionalPhotoToRow draftPhotos)
 
       lift $ deleteOrphanedPhotos
+      
+      pure (postId insertedPost)

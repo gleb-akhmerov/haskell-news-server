@@ -5,6 +5,7 @@ import Data.Int (Int32)
 import Data.Text (Text)
 
 import Database.Beam
+import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
 
 import BeamSchema
@@ -16,9 +17,9 @@ data CreateCommentary = CreateCommentary
   , cCommentaryContent :: Text
   }
 
-createCommentary :: CreateCommentary -> Pg ()
-createCommentary ct =
-  runInsert $ insert (dbCommentary newsDb) $
+createCommentary :: CreateCommentary -> Pg Int32
+createCommentary ct = do
+  [commentary] <- runInsertReturningList $ insert (dbCommentary newsDb) $
     insertExpressions
       [ Commentary
           { commentaryId      = default_
@@ -27,3 +28,4 @@ createCommentary ct =
           , commentaryContent = val_ (cCommentaryContent ct)
           }
       ]
+  pure (commentaryId commentary)

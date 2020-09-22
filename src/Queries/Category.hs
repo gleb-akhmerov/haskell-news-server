@@ -10,6 +10,7 @@ import Data.Text (Text)
 import Data.Vector (Vector)
 
 import Database.Beam
+import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
 
 import BeamSchema
@@ -21,15 +22,16 @@ data CreateCategory = CreateCategory
  , cCategoryName :: Text
  }
 
-createCategory :: CreateCategory -> Pg ()
-createCategory cc =
-  runInsert $ insert (dbCategory newsDb) $
+createCategory :: CreateCategory -> Pg Int32
+createCategory cc = do
+  [category] <- runInsertReturningList $ insert (dbCategory newsDb) $
     insertExpressions
       [ Category { categoryId       = default_
                  , categoryParentId = val_ (cCategoryParentId cc)
                  , categoryName     = val_ (cCategoryName cc)
                  }
       ]
+  pure (categoryId category)
 
 withCategoryTree :: DbWith (DbQ s (DbQExpr s Int32, CategoryT (DbQExpr s)))
 withCategoryTree = do

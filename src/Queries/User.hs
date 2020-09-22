@@ -2,9 +2,11 @@ module Queries.User where
 
 
 import Data.ByteString (ByteString)
+import Data.Int (Int32)
 import Data.Text (Text)
 
 import Database.Beam
+import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
 
 import BeamSchema
@@ -17,9 +19,9 @@ data CreateUser = CreateUser
   , cUserIsAdmin :: Bool
   }
 
-createUser :: CreateUser -> Pg ()
-createUser cu =
-  runInsert $ insert (dbUser newsDb) $
+createUser :: CreateUser -> Pg Int32
+createUser cu = do
+  [user] <- runInsertReturningList $ insert (dbUser newsDb) $
     insertExpressions
       [ User { userId        = default_
              , userFirstName = val_ (cUserFirstName cu)
@@ -29,3 +31,4 @@ createUser cu =
              , userIsAdmin   = val_ (cUserIsAdmin cu)
              }
       ]
+  pure (userId user)

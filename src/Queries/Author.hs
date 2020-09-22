@@ -8,6 +8,7 @@ import Data.Maybe (isNothing)
 import Data.Text (Text)
 
 import Database.Beam
+import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
 
 import BeamSchema
@@ -18,7 +19,7 @@ data CreateAuthor = CreateAuthor
   , cAuthorShortDescription :: Text
   }
 
-createAuthor :: CreateAuthor -> Pg (Either String ())
+createAuthor :: CreateAuthor -> Pg (Either String Int32)
 createAuthor ca = runExceptT $ do
   do mUser <- runSelectReturningOne $ select $
        filter_ (\a -> userId a ==. val_ (cAuthorUserId ca))
@@ -26,9 +27,11 @@ createAuthor ca = runExceptT $ do
      when (isNothing mUser) $
        throwE $ "User with id doesn't exist: " ++ show (cAuthorUserId ca)
 
-  runInsert $ insert (dbAuthor newsDb) $
+  [author] <- runInsertReturningList $ insert (dbAuthor newsDb) $
     insertExpressions
       [ Author { authorId               = val_ (cAuthorUserId ca)
                , authorShortDescription = val_ (cAuthorShortDescription ca)
                }
       ]
+
+  pure (authorId author)
