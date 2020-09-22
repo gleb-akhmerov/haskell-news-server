@@ -18,13 +18,13 @@ import Data.Time (LocalTime)
 
 import Database.Beam
 
-data UsrT f = Usr
-  { _usrId        :: C f Int32
-  , _usrFirstName :: C f Text
-  , _usrLastName  :: C f Text
-  , _usrAvatar    :: C f ByteString
-  , _usrCreatedAt :: C f LocalTime
-  , _usrIsAdmin   :: C f Bool
+data UserT f = User
+  { _userId        :: C f Int32
+  , _userFirstName :: C f Text
+  , _userLastName  :: C f Text
+  , _userAvatar    :: C f ByteString
+  , _userCreatedAt :: C f LocalTime
+  , _userIsAdmin   :: C f Bool
   }
   deriving (Generic, Beamable)
 
@@ -107,10 +107,10 @@ data CommentaryT f = Commentary
   }
   deriving (Generic, Beamable)
 
-instance Table UsrT where
-  data PrimaryKey UsrT f = UsrId (C f Int32)
+instance Table UserT where
+  data PrimaryKey UserT f = UserId (C f Int32)
     deriving (Generic, Beamable)
-  primaryKey = UsrId . _usrId
+  primaryKey = UserId . _userId
 
 instance Table AuthorT where
   data PrimaryKey AuthorT f = AuthorId (C f Int32)
@@ -167,7 +167,7 @@ instance Table CommentaryT where
     deriving (Generic, Beamable)
   primaryKey = CommentaryId . _commentaryId
 
-type Usr = UsrT Identity
+type User = UserT Identity
 type Author = AuthorT Identity
 type Category = CategoryT Identity
 type Photo = PhotoT Identity
@@ -180,7 +180,7 @@ type PostAdditionalPhoto = PostAdditionalPhotoT Identity
 type DraftAdditionalPhoto = DraftAdditionalPhotoT Identity
 type Commentary = CommentaryT Identity
 
-deriving instance Show Usr
+deriving instance Show User
 deriving instance Show Author
 deriving instance Show Category
 deriving instance Show Photo
@@ -193,7 +193,7 @@ deriving instance Show PostAdditionalPhoto
 deriving instance Show DraftAdditionalPhoto
 deriving instance Show Commentary
 
-deriving instance Show (PrimaryKey UsrT Identity)
+deriving instance Show (PrimaryKey UserT Identity)
 deriving instance Show (PrimaryKey AuthorT Identity)
 deriving instance Show (PrimaryKey CategoryT Identity)
 deriving instance Show (PrimaryKey CategoryT (Nullable Identity))
@@ -208,7 +208,7 @@ deriving instance Show (PrimaryKey DraftAdditionalPhotoT Identity)
 deriving instance Show (PrimaryKey CommentaryT Identity)
 
 data NewsDb f = NewsDb
-  { _dbUsr                  :: f (TableEntity UsrT)
+  { _dbUser                 :: f (TableEntity UserT)
   , _dbAuthor               :: f (TableEntity AuthorT)
   , _dbCategory             :: f (TableEntity CategoryT)
   , _dbPhoto                :: f (TableEntity PhotoT)
@@ -226,7 +226,8 @@ data NewsDb f = NewsDb
 newsDb :: DatabaseSettings be NewsDb
 newsDb = defaultDbSettings `withDbModification`
   dbModification
-    { _dbPostTag = modifyTableFields tableModification
+    { _dbUser = setEntityName "usr"
+    , _dbPostTag = modifyTableFields tableModification
         { _postTagTagId = "tag_id"
         , _postTagPostId = "post_id" }
     , _dbDraftTag = modifyTableFields tableModification

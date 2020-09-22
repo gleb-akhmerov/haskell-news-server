@@ -46,7 +46,7 @@ postsWithCategories
   :: DbWith
        (DbQ s
          ( PostT (DbQExpr s)
-         , UsrT (DbQExpr s)
+         , UserT (DbQExpr s)
          , T2 s (Vector Int32) (Vector Text)
          , T2 s (Vector Int32) (Vector Text)
          , DbQExpr s (Vector Int32)))
@@ -59,7 +59,7 @@ postsWithCategories = do
        postTag <- join_ (_dbPostTag newsDb) (\pt -> _postTagPostId pt ==. _postId post)
        tag <- join_ (_dbTag newsDb) (\t -> _postTagTagId postTag ==. _tagId t)
        postAdditionalPhoto <- join_ (_dbPostAdditionalPhoto newsDb) (\pap -> _postAdditionalPhotoPostId pap ==. _postId post)
-       user <- join_ (_dbUsr newsDb) (\u -> _postAuthorId post ==. _usrId u)
+       user <- join_ (_dbUser newsDb) (\u -> _postAuthorId post ==. _userId u)
        pure (post, user, cTree, tag, postAdditionalPhoto)
     & aggregate_ (\(post, user, cTree, tag, postAdditionalPhoto) ->
                     ( group_ post
@@ -90,15 +90,15 @@ data CreateUser = CreateUser
 
 createUser :: CreateUser -> Pg ()
 createUser cu =
-  runInsert $ insert (_dbUsr newsDb) $
+  runInsert $ insert (_dbUser newsDb) $
     insertExpressions
-      [ Usr { _usrId        = default_
-            , _usrFirstName = val_ (cUserFirstName cu)
-            , _usrLastName  = val_ (cUserLastName cu)
-            , _usrAvatar    = val_ (cUserAvatar cu)
-            , _usrCreatedAt = now_
-            , _usrIsAdmin   = val_ (cUserIsAdmin cu)
-            }
+      [ User { _userId        = default_
+             , _userFirstName = val_ (cUserFirstName cu)
+             , _userLastName  = val_ (cUserLastName cu)
+             , _userAvatar    = val_ (cUserAvatar cu)
+             , _userCreatedAt = now_
+             , _userIsAdmin   = val_ (cUserIsAdmin cu)
+             }
       ]
 
 data CreateAuthor = CreateAuthor
@@ -109,8 +109,8 @@ data CreateAuthor = CreateAuthor
 createAuthor :: CreateAuthor -> ExceptT String Pg ()
 createAuthor ca = do
   do mUser <- runSelectReturningOne $ select $
-       filter_ (\a -> _usrId a ==. val_ (cAuthorUserId ca))
-               (all_ (_dbUsr newsDb))
+       filter_ (\a -> _userId a ==. val_ (cAuthorUserId ca))
+               (all_ (_dbUser newsDb))
      when (isNothing mUser) $
        throwE $ "User with id doesn't exist: " ++ show (cAuthorUserId ca)
 

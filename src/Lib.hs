@@ -37,14 +37,14 @@ applyOneFilterToQuery
   -> DbWith
        (DbQ s
          ( PostT (DbQExpr s)
-         , UsrT (DbQExpr s)
+         , UserT (DbQExpr s)
          , T2 s (Vector Int32) (Vector Text)
          , T2 s (Vector Int32) (Vector Text)
          , DbQExpr s (Vector Int32)))
   -> DbWith
        (DbQ s
          ( PostT (DbQExpr s)
-         , UsrT (DbQExpr s)
+         , UserT (DbQExpr s)
          , T2 s (Vector Int32) (Vector Text)
          , T2 s (Vector Int32) (Vector Text)
          , DbQExpr s (Vector Int32)))
@@ -61,7 +61,7 @@ applyOneFilterToQuery flt withQuery = do
         PfPublishedAtGt date ->
           _postPublishedAt post >. val_ date
         PfAuthorName firstName lastName ->
-          _usrFirstName user ==. val_ firstName &&. _usrLastName user ==. val_ lastName
+          _userFirstName user ==. val_ firstName &&. _userLastName user ==. val_ lastName
         PfCategoryId cId ->
           _postCategoryId post ==. val_ cId
         PfTagId tId ->
@@ -79,14 +79,14 @@ applyFiltersToQuery
   -> DbWith
        (DbQ s
          ( PostT (DbQExpr s)
-         , UsrT (DbQExpr s)
+         , UserT (DbQExpr s)
          , T2 s (Vector Int32) (Vector Text)
          , T2 s (Vector Int32) (Vector Text)
          , DbQExpr s (Vector Int32)))
   -> DbWith
        (DbQ s
          ( PostT (DbQExpr s)
-         , UsrT (DbQExpr s)
+         , UserT (DbQExpr s)
          , T2 s (Vector Int32) (Vector Text)
          , T2 s (Vector Int32) (Vector Text)
          , DbQExpr s (Vector Int32)))
@@ -137,7 +137,7 @@ someFunc = do
                  , cUserAvatar = ""
                  , cUserIsAdmin = False
                  }
-    do xs <- runSelectReturningList $ select $ all_ (_dbUsr newsDb)
+    do xs <- runSelectReturningList $ select $ all_ (_dbUser newsDb)
        mapM_ (liftIO . putStrLn . show) xs
 
     runInsert $ insert (_dbPhoto newsDb) $
