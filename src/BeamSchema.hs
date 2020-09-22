@@ -238,5 +238,5 @@ newsDb = defaultDbSettings `withDbModification`
         , postAdditionalPhotoPostId = "post_id" }
     , dbDraftAdditionalPhoto = modifyTableFields tableModification
         { draftAdditionalPhotoPhotoId = "photo_id"
-        , draftAdditionalPhotoDraftId = "post_id" }
+        , draftAdditionalPhotoDraftId = "draft_id" }
     }
