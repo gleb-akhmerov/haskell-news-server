@@ -26,6 +26,11 @@ data CreateCategory = CreateCategory
   { cCategoryParentId :: Maybe Int32
   , cCategoryName :: Text
   }
+  deriving (Generic, Show)
+
+instance FromJSON CreateCategory where
+  parseJSON = genericParseJSON defaultOptions
+                { fieldLabelModifier = camelTo2 '_' . drop (length ("cCategory" :: String)) }
 
 createCategory :: CreateCategory -> Pg Int32
 createCategory cc = do

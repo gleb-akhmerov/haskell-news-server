@@ -5,6 +5,7 @@ import Control.Monad.Trans.Except (runExceptT)
 import Data.Int (Int32)
 import Data.Text (Text)
 
+import Data.Aeson
 import Database.Beam
 import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
@@ -19,6 +20,11 @@ data CreateUser = CreateUser
   , cUserAvatarId :: Int32
   , cUserIsAdmin :: Bool
   }
+  deriving (Generic, Show)
+
+instance FromJSON CreateUser where
+  parseJSON = genericParseJSON defaultOptions
+                { fieldLabelModifier = camelTo2 '_' . drop (length "cUser") }
 
 createUser :: CreateUser -> Pg (Either String Int32)
 createUser cu = runExceptT $ do
@@ -43,6 +49,11 @@ data UpdateUser = UpdateUser
   , uUserNewAvatarId :: Maybe Int32
   , uUserNewIsAdmin :: Maybe Bool
   }
+  deriving (Generic, Show)
+
+instance FromJSON UpdateUser where
+  parseJSON = genericParseJSON defaultOptions
+                { fieldLabelModifier = camelTo2 '_' . drop (length "uUser") }
 
 updateUser :: UpdateUser -> Pg (Either String ())
 updateUser uu = runExceptT $ do

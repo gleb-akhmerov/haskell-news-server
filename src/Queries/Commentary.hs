@@ -4,6 +4,7 @@ module Queries.Commentary where
 import Data.Int (Int32)
 import Data.Text (Text)
 
+import Data.Aeson
 import Database.Beam
 import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
@@ -16,6 +17,11 @@ data CreateCommentary = CreateCommentary
   , cCommentaryPostId :: Int32
   , cCommentaryContent :: Text
   }
+  deriving (Generic, Show)
+
+instance FromJSON CreateCommentary where
+  parseJSON = genericParseJSON defaultOptions
+                { fieldLabelModifier = camelTo2 '_' . drop (length "cCommentary") }
 
 createCommentary :: CreateCommentary -> Pg Int32
 createCommentary ct = do

@@ -5,6 +5,7 @@ import Control.Monad.Trans.Except (runExceptT)
 import Data.Int (Int32)
 import Data.Text (Text)
 
+import Data.Aeson
 import Database.Beam
 import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
@@ -17,6 +18,11 @@ data CreateAuthor = CreateAuthor
   { cAuthorUserId :: Int32
   , cAuthorShortDescription :: Text
   }
+  deriving (Generic, Show)
+
+instance FromJSON CreateAuthor where
+  parseJSON = genericParseJSON defaultOptions
+                { fieldLabelModifier = camelTo2 '_' . drop (length "cAuthor") }
 
 createAuthor :: CreateAuthor -> Pg (Either String Int32)
 createAuthor ca = runExceptT $ do
@@ -34,6 +40,11 @@ data UpdateAuthor = UpdateAuthor
   { uAuthorId :: Int32
   , uAuthorNewShortDescription :: Text
   }
+  deriving (Generic, Show)
+
+instance FromJSON UpdateAuthor where
+  parseJSON = genericParseJSON defaultOptions
+                { fieldLabelModifier = camelTo2 '_' . drop (length "uAuthor") }
 
 updateAuthor :: UpdateAuthor -> Pg (Either String ())
 updateAuthor ua = runExceptT $ do

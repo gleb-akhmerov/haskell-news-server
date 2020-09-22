@@ -10,6 +10,7 @@ import Data.Int (Int32)
 import Data.Text (Text)
 import qualified Data.Vector as Vector (fromList)
 
+import Data.Aeson
 import Database.Beam
 import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
@@ -27,6 +28,11 @@ data CreateDraft = CreateDraft
   , cDraftAdditionalPhotoIds :: [Int32]
   , cDraftTagIds :: [Int32]
   }
+  deriving (Generic, Show)
+
+instance FromJSON CreateDraft where
+  parseJSON = genericParseJSON defaultOptions
+                { fieldLabelModifier = camelTo2 '_' . drop (length "cDraft") }
 
 createDraft :: CreateDraft -> Pg (Either String Int32)
 createDraft cd = runExceptT $ do
@@ -129,6 +135,11 @@ data UpdateDraft = UpdateDraft
   , uDraftNewAdditionalPhotoIds :: Maybe [Int32]
   , uDraftNewTagIds :: Maybe [Int32]
   }
+  deriving (Generic, Show)
+
+instance FromJSON UpdateDraft where
+  parseJSON = genericParseJSON defaultOptions
+                { fieldLabelModifier = camelTo2 '_' . drop (length "uDraft") }
 
 
 updateDraft :: UpdateDraft -> Pg (Either String ())

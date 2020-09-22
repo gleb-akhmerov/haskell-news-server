@@ -5,6 +5,7 @@ import Control.Monad.Trans.Except (runExceptT)
 import Data.Int (Int32)
 import Data.Text (Text)
 
+import Data.Aeson
 import Database.Beam
 import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
@@ -16,6 +17,11 @@ import Queries.Util
 data CreateTag = CreateTag
   { cTagName :: Text
   }
+  deriving (Generic, Show)
+
+instance FromJSON CreateTag where
+  parseJSON = genericParseJSON defaultOptions
+                { fieldLabelModifier = camelTo2 '_' . drop (length "cTag") }
 
 createTag :: CreateTag -> Pg Int32
 createTag ct = do
@@ -33,6 +39,11 @@ data UpdateTag = UpdateTag
   { uTagId :: Int32
   , uTagNewName :: Text
   }
+  deriving (Generic, Show)
+
+instance FromJSON UpdateTag where
+  parseJSON = genericParseJSON defaultOptions
+                { fieldLabelModifier = camelTo2 '_' . drop (length "uTag") }
 
 updateTag :: UpdateTag -> Pg (Either String ())
 updateTag ut = runExceptT $ do
