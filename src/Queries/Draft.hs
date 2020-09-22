@@ -4,11 +4,9 @@
 module Queries.Draft where
 
 
-import Control.Monad (when, unless)
-import Control.Monad.Trans.Class (lift)
+import Control.Monad (unless)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
 import Data.Int (Int32)
-import Data.Maybe (isJust)
 import Data.Text (Text)
 import qualified Data.Vector as Vector (fromList)
 
@@ -17,7 +15,6 @@ import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
 
 import BeamSchema
-import Queries.Photo
 import Queries.Util
 
 
@@ -119,8 +116,6 @@ publishDraft dId = runExceptT $ do
       runInsert $ insert (dbPostAdditionalPhoto newsDb) $
         insertValues (map draftAdditionalPhotoToRow draftPhotos)
 
-      lift $ deleteOrphanedPhotos
-      
       pure (postId insertedPost)
 
 
@@ -206,9 +201,6 @@ updateDraft ud = runExceptT $ do
               }
       runInsert $ insert (dbDraftTag newsDb) $
         insertValues (map tagToRow newTagIds)
-
-  when (isJust (uDraftNewMainPhotoId ud) || isJust (uDraftNewAdditionalPhotoIds ud)) $
-    lift $ deleteOrphanedPhotos
 
 
 makeSureTagsExist :: [Int32] -> ExceptT String Pg ()
