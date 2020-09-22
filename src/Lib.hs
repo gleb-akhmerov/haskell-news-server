@@ -17,9 +17,12 @@ import Database.Beam hiding (date)
 import Database.Beam.Postgres
 
 import BeamSchema
+import Queries.Author
 import Queries.Category
+import Queries.Draft
 import Queries.Photo
 import Queries.Post
+import Queries.Tag
 import Queries.User
 import Queries.Util
 
@@ -118,12 +121,12 @@ someFunc = do
   runBeamPostgresDebug putStrLn conn $ runInsert $
     insert (dbCategory newsDb) $
       insertValues
-        [ Category 4 Nothing "Programming Languages"
-        , Category 5 (Just 4) "Python"
-        , Category 6 (Just 5) "A"
-        , Category 7 (Just 5) "B"
-        , Category 8 (Just 4) "C"
-        , Category 9 Nothing "D"
+        [ Category 1 Nothing "Programming Languages"
+        , Category 2 (Just 1) "Python"
+        , Category 3 (Just 2) "A"
+        , Category 4 (Just 2) "B"
+        , Category 5 (Just 1) "C"
+        , Category 6 Nothing "D"
         ]
   runBeamPostgresDebug putStrLn conn $ do
     do xs <- runSelectReturningList $ selectWith withCategoryTree
@@ -141,6 +144,10 @@ someFunc = do
                  , cUserAvatar = ""
                  , cUserIsAdmin = False
                  }
+    createAuthor CreateAuthor
+                   { cAuthorUserId = 1
+                   , cAuthorShortDescription = ""
+                   }
     do xs <- runSelectReturningList $ select $ all_ (dbUser newsDb)
        mapM_ (liftIO . putStrLn . show) xs
 
@@ -156,4 +163,16 @@ someFunc = do
     deleteOrphanedPhotos
     do xs <- runSelectReturningList $ select $ all_ (dbPhoto newsDb)
        mapM_ (liftIO . print) xs
+
+    createTag "A"
+    do x <- createDraft CreateDraft
+                          { cDraftShortName = ""
+                          , cDraftAuthorId = 1
+                          , cDraftCategoryId = 1
+                          , cDraftTextContent = ""
+                          , cDraftMainPhoto = ""
+                          , cDraftAdditionalPhotos = []
+                          , cDraftTagIds = [1]
+                          }
+       liftIO $ print x
   rollback conn
