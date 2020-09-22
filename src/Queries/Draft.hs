@@ -145,36 +145,11 @@ instance FromJSON UpdateDraft where
 updateDraft :: UpdateDraft -> Pg (Either String ())
 updateDraft ud = runExceptT $ do
   makeSureEntityExists "Draft" (dbDraft newsDb) draftId (uDraftId ud)
-
-  case uDraftNewAuthorId ud of
-    Nothing ->
-      pure ()
-    Just newAuthorId ->
-      makeSureEntityExists "Author" (dbAuthor newsDb) authorId newAuthorId
-
-  case uDraftNewCategoryId ud of
-    Nothing ->
-      pure ()
-    Just newCategoryId ->
-      makeSureEntityExists "Category" (dbCategory newsDb) categoryId newCategoryId
-
-  case uDraftNewTagIds ud of
-    Nothing ->
-      pure ()
-    Just newTagIds ->
-      makeSureTagsExist newTagIds
-
-  case uDraftNewMainPhotoId ud of
-    Nothing ->
-      pure ()
-    Just newMainPhotoId ->
-      makeSureEntityExists "Photo" (dbPhoto newsDb) photoId newMainPhotoId
-
-  case uDraftNewAdditionalPhotoIds ud of
-    Nothing ->
-      pure ()
-    Just newAdditionalPhotoIds ->
-      makeSurePhotosExist newAdditionalPhotoIds
+  maybeDo (makeSureEntityExists "Author" (dbAuthor newsDb) authorId) (uDraftNewAuthorId ud)
+  maybeDo (makeSureEntityExists "Category" (dbCategory newsDb) categoryId) (uDraftNewCategoryId ud)
+  maybeDo makeSureTagsExist (uDraftNewTagIds ud)
+  maybeDo (makeSureEntityExists "Photo" (dbPhoto newsDb) photoId) (uDraftNewMainPhotoId ud)
+  maybeDo makeSurePhotosExist (uDraftNewAdditionalPhotoIds ud)
 
   runUpdate $ update (dbDraft newsDb)
                      (\d ->

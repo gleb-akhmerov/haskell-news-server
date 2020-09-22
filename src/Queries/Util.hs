@@ -36,3 +36,9 @@ makeSureEntityExists entityName table getEntityId entityId = do
             (all_ table)
   when (isNothing mEntity) $
     throwE $ entityName ++ " with id doesn't exist: " ++ show entityId
+
+maybeDo :: Applicative f => (x -> f ()) -> Maybe x -> f ()
+maybeDo f maybeX =
+  case maybeX of
+    Nothing -> pure ()
+    Just x  -> f x

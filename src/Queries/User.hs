@@ -58,11 +58,7 @@ instance FromJSON UpdateUser where
 updateUser :: UpdateUser -> Pg (Either String ())
 updateUser uu = runExceptT $ do
   makeSureEntityExists "User" (dbUser newsDb) userId (uUserId uu)
-  case uUserNewAvatarId uu of
-    Nothing ->
-      pure ()
-    Just newAvatarId ->
-      makeSureEntityExists "Photo" (dbPhoto newsDb) photoId newAvatarId
+  maybeDo (makeSureEntityExists "Photo" (dbPhoto newsDb) photoId) (uUserNewAvatarId uu)
   runUpdate $ update (dbUser newsDb)
                      (\u ->
                           maybeAssignment (uUserNewFirstName uu) (\x -> userFirstName u <-. val_ x)
