@@ -6,7 +6,7 @@ module Queries.Draft where
 
 import Control.Monad (forM, when)
 import Control.Monad.Trans.Class (lift)
-import Control.Monad.Trans.Except (ExceptT, throwE)
+import Control.Monad.Trans.Except (runExceptT, throwE)
 import Data.ByteString (ByteString)
 import Data.Int (Int32)
 import Data.Maybe (isNothing)
@@ -30,8 +30,8 @@ data CreateDraft = CreateDraft
   , cDraftTagIds :: [Int32]
   }
 
-createDraft :: CreateDraft -> ExceptT String Pg ()
-createDraft cd = do
+createDraft :: CreateDraft -> Pg (Either String ())
+createDraft cd = runExceptT $ do
   _ <- do mAuthor <- runSelectReturningOne $ select $
             filter_ (\a -> authorId a ==. val_ (cDraftAuthorId cd))
                     (all_ (dbAuthor newsDb))
@@ -91,8 +91,8 @@ createDraft cd = do
     insertValues (map tagToRow (cDraftTagIds cd))
 
 
-publishDraft :: Int32 -> ExceptT String Pg ()
-publishDraft dId = do
+publishDraft :: Int32 -> Pg (Either String ())
+publishDraft dId = runExceptT $ do
   mDraft <- runSelectReturningOne $ select $
     filter_ (\d -> draftId d ==. val_ dId) (all_ (dbDraft newsDb))
   case mDraft of

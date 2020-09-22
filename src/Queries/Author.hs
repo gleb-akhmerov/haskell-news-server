@@ -2,7 +2,7 @@ module Queries.Author where
 
 
 import Control.Monad (when)
-import Control.Monad.Trans.Except (ExceptT, throwE)
+import Control.Monad.Trans.Except (throwE, runExceptT)
 import Data.Int (Int32)
 import Data.Maybe (isNothing)
 import Data.Text (Text)
@@ -18,8 +18,8 @@ data CreateAuthor = CreateAuthor
   , cAuthorShortDescription :: Text
   }
 
-createAuthor :: CreateAuthor -> ExceptT String Pg ()
-createAuthor ca = do
+createAuthor :: CreateAuthor -> Pg (Either String ())
+createAuthor ca = runExceptT $ do
   do mUser <- runSelectReturningOne $ select $
        filter_ (\a -> userId a ==. val_ (cAuthorUserId ca))
                (all_ (dbUser newsDb))
