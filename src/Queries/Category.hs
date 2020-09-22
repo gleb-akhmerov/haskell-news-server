@@ -63,6 +63,10 @@ instance FromJSON UpdateCategory where
 updateCategory :: UpdateCategory -> Pg (Either String ())
 updateCategory uc = runExceptT $ do
   makeSureEntityExists "Category" (dbCategory newsDb) categoryId (uCategoryId uc)
+  case uCategoryNewParentId uc of
+    Unspecified -> pure ()
+    Specified newParentId ->
+      maybeDo (makeSureEntityExists "Category" (dbCategory newsDb) categoryId) newParentId
   runUpdate $ update (dbCategory newsDb)
                      (\c ->
                           maybeAssignment (uCategoryNewName     uc) (\x -> categoryName     c <-. val_ x)
