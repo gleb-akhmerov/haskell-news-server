@@ -46,6 +46,7 @@ postsWithCategories
   :: DbWith
        (DbQ s
          ( PostT (DbQExpr s)
+         , UsrT (DbQExpr s)
          , T2 s (Vector Int32) (Vector Text)
          , T2 s (Vector Int32) (Vector Text)
          , DbQExpr s (Vector Int32)))
@@ -58,9 +59,11 @@ postsWithCategories = do
        postTag <- oneToMany_ (_dbPostTag newsDb) _postTagPostId post
        tag <- join_ (_dbTag newsDb) (\t -> _postTagTagId postTag ==. pk t)
        postAdditionalPhoto <- oneToMany_ (_dbPostAdditionalPhoto newsDb) _postAdditionalPhotoPostId post
-       pure (post, cTree, tag, postAdditionalPhoto)
-    & aggregate_ (\(post, cTree, tag, postAdditionalPhoto) ->
+       user <- join_ (_dbUsr newsDb) (\u -> _postAuthorId post ==. AuthorId (pk u))
+       pure (post, user, cTree, tag, postAdditionalPhoto)
+    & aggregate_ (\(post, user, cTree, tag, postAdditionalPhoto) ->
                     ( group_ post
+                    , group_ user
                     , (pgArrayAgg (_categoryId cTree), pgArrayAgg (_categoryName cTree))
                     , (pgArrayAgg (_tagId tag), pgArrayAgg (_tagName tag))
                     , pgArrayAgg (unPhotoId (_postAdditionalPhotoPhotoId postAdditionalPhoto))))
