@@ -27,8 +27,8 @@ type DbQ = Q Postgres NewsDb
 type DbQExpr = QExpr Postgres
 type T2 s a b = (DbQExpr s a, DbQExpr s b)
 
-categoryTree :: DbWith (DbQ s (DbQExpr s Int32, CategoryT (DbQExpr s)))
-categoryTree = do
+withCategoryTree :: DbWith (DbQ s (DbQExpr s Int32, CategoryT (DbQExpr s)))
+withCategoryTree = do
   rec catTree <- selecting $
         (do cat <- all_ (_dbCategory newsDb)
             pure (_categoryId cat, as_ @Int32 1, cat))
@@ -49,31 +49,31 @@ postsWithCategories
          , T2 s (Vector Int32) (Vector Text)
          , T2 s (Vector Int32) (Vector Text)))
 postsWithCategories = do
-  cats <- categoryTree
+  catTree <- withCategoryTree
   pure $
     do post <- all_ (_dbPost newsDb)
-       c@(start, _) <- cats
+       (start, cTree) <- catTree
        guard_ (CategoryId start ==. _postCategoryId post)
        postTag <- oneToMany_ (_dbPostTag newsDb) _postTagPostId post
        tag <- join_ (_dbTag newsDb) (\t -> _postTagTagId postTag ==. pk t)
-       pure (post, c, tag)
-    & aggregate_ (\(post, (_start, treeCat), tag) ->
+       pure (post, cTree, tag)
+    & aggregate_ (\(post, cTree, tag) ->
                     ( group_ post
-                    , (pgArrayAgg (_categoryId treeCat), pgArrayAgg (_categoryName treeCat))
+                    , (pgArrayAgg (_categoryId cTree), pgArrayAgg (_categoryName cTree))
                     , (pgArrayAgg (_tagId tag), pgArrayAgg (_tagName tag))))
 
 categoriesWithTrees :: DbWith (DbQ s (CategoryT (DbQExpr s), DbQExpr s (Vector Int32), DbQExpr s (Vector Text)))
 categoriesWithTrees = do
-  cats <- categoryTree
+  catTree <- withCategoryTree
   pure $
     do cat <- all_ (_dbCategory newsDb)
-       c@(start, _) <- cats
+       (start, cTree) <- catTree
        guard_ (start ==. _categoryId cat)
-       pure (cat, c)
-    & aggregate_ (\(cat, (_start, treeCat)) ->
+       pure (cat, cTree)
+    & aggregate_ (\(cat, cTree) ->
                     ( group_ cat
-                    , pgArrayAgg (_categoryId treeCat)
-                    , pgArrayAgg (_categoryName treeCat)))
+                    , pgArrayAgg (_categoryId cTree)
+                    , pgArrayAgg (_categoryName cTree)))
 
 data CreateUser = CreateUser
   { cUserFirstName :: Text

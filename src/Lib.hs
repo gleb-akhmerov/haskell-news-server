@@ -74,7 +74,7 @@ someFunc = do
         , Category 9 (CategoryId Nothing) "D"
         ]
   runBeamPostgresDebug putStrLn conn $ do
-    do xs <- runSelectReturningList $ selectWith categoryTree
+    do xs <- runSelectReturningList $ selectWith withCategoryTree
        mapM_ (liftIO . putStrLn . show) xs
 
     do xs <- runSelectReturningList $ selectWith categoriesWithTrees
