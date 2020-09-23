@@ -43,8 +43,7 @@ createUser cu = runExceptT $ do
 
 
 data UpdateUser = UpdateUser
-  { uUserId :: Int32
-  , uUserNewFirstName :: Maybe Text
+  { uUserNewFirstName :: Maybe Text
   , uUserNewLastName :: Maybe Text
   , uUserNewAvatarId :: Maybe Int32
   , uUserNewIsAdmin :: Maybe Bool
@@ -55,9 +54,9 @@ instance FromJSON UpdateUser where
   parseJSON = genericParseJSON defaultOptions
                 { fieldLabelModifier = camelTo2 '_' . drop (length "uUser") }
 
-updateUser :: UpdateUser -> Pg (Either String ())
-updateUser uu = runExceptT $ do
-  makeSureEntityExists "User" (dbUser newsDb) userId (uUserId uu)
+updateUser :: Int32 -> UpdateUser -> Pg (Either String ())
+updateUser uUserId uu = runExceptT $ do
+  makeSureEntityExists "User" (dbUser newsDb) userId uUserId
   maybeDo (makeSureEntityExists "Photo" (dbPhoto newsDb) photoId) (uUserNewAvatarId uu)
   runUpdate $ update (dbUser newsDb)
                      (\u ->
@@ -65,4 +64,4 @@ updateUser uu = runExceptT $ do
                        <> maybeAssignment (uUserNewLastName  uu) (\x -> userLastName  u <-. val_ x)
                        <> maybeAssignment (uUserNewAvatarId  uu) (\x -> userAvatarId  u <-. val_ x)
                        <> maybeAssignment (uUserNewIsAdmin   uu) (\x -> userIsAdmin   u <-. val_ x))
-                     (\u -> userId u ==. val_ (uUserId uu))
+                     (\u -> userId u ==. val_ uUserId)

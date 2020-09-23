@@ -37,8 +37,7 @@ createAuthor ca = runExceptT $ do
 
 
 data UpdateAuthor = UpdateAuthor
-  { uAuthorId :: Int32
-  , uAuthorNewShortDescription :: Text
+  { uAuthorNewShortDescription :: Text
   }
   deriving (Generic, Show)
 
@@ -46,9 +45,9 @@ instance FromJSON UpdateAuthor where
   parseJSON = genericParseJSON defaultOptions
                 { fieldLabelModifier = camelTo2 '_' . drop (length "uAuthor") }
 
-updateAuthor :: UpdateAuthor -> Pg (Either String ())
-updateAuthor ua = runExceptT $ do
-  makeSureEntityExists "Author" (dbAuthor newsDb) authorId (uAuthorId ua)
+updateAuthor :: Int32 -> UpdateAuthor -> Pg (Either String ())
+updateAuthor uAuthorId ua = runExceptT $ do
+  makeSureEntityExists "Author" (dbAuthor newsDb) authorId uAuthorId
   runUpdate $ update (dbAuthor newsDb)
                      (\a -> authorShortDescription a <-. val_ (uAuthorNewShortDescription ua))
-                     (\a -> authorId a ==. val_ (uAuthorId ua))
+                     (\a -> authorId a ==. val_ uAuthorId)

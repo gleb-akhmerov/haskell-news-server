@@ -45,24 +45,22 @@ createCategory cc = do
 
 
 data UpdateCategory = UpdateCategory
-  { uCategoryId :: Int32
-  , uCategoryNewParentId :: MaybeOrUnspecified Int32
+  { uCategoryNewParentId :: MaybeOrUnspecified Int32
   , uCategoryNewName :: Maybe Text
   }
   deriving Show
 
 instance FromJSON UpdateCategory where
   parseJSON = withObject "UpdateCategory" $ \v -> do
-                uCategoryId <- v .: "id"
                 uCategoryNewParentId <- case H.lookup "new_parent_id" v of
                   Nothing -> pure Unspecified
                   Just a  -> Specified <$> parseJSON a
                 uCategoryNewName <- v .:? "new_name"
                 return UpdateCategory {..}
 
-updateCategory :: UpdateCategory -> Pg (Either String ())
-updateCategory uc = runExceptT $ do
-  makeSureEntityExists "Category" (dbCategory newsDb) categoryId (uCategoryId uc)
+updateCategory :: Int32 -> UpdateCategory -> Pg (Either String ())
+updateCategory uCategoryId uc = runExceptT $ do
+  makeSureEntityExists "Category" (dbCategory newsDb) categoryId uCategoryId
   case uCategoryNewParentId uc of
     Unspecified -> pure ()
     Specified newParentId ->
@@ -73,7 +71,7 @@ updateCategory uc = runExceptT $ do
                        <> case uCategoryNewParentId uc of
                             Unspecified -> mempty
                             Specified newParentId -> categoryParentId c <-. val_ newParentId)
-                     (\c -> categoryId c ==. val_ (uCategoryId uc))
+                     (\c -> categoryId c ==. val_ uCategoryId)
 
 
 withCategoryTree :: DbWith (DbQ s (DbQExpr s Int32, CategoryT (DbQExpr s)))

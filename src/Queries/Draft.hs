@@ -126,8 +126,7 @@ publishDraft dId = runExceptT $ do
 
 
 data UpdateDraft = UpdateDraft
-  { uDraftId :: Int32
-  , uDraftNewShortName :: Maybe Text
+  { uDraftNewShortName :: Maybe Text
   , uDraftNewAuthorId :: Maybe Int32
   , uDraftNewCategoryId :: Maybe Int32
   , uDraftNewTextContent :: Maybe Text
@@ -142,9 +141,9 @@ instance FromJSON UpdateDraft where
                 { fieldLabelModifier = camelTo2 '_' . drop (length "uDraft") }
 
 
-updateDraft :: UpdateDraft -> Pg (Either String ())
-updateDraft ud = runExceptT $ do
-  makeSureEntityExists "Draft" (dbDraft newsDb) draftId (uDraftId ud)
+updateDraft :: Int32 -> UpdateDraft -> Pg (Either String ())
+updateDraft uDraftId ud = runExceptT $ do
+  makeSureEntityExists "Draft" (dbDraft newsDb) draftId uDraftId
   maybeDo (makeSureEntityExists "Author" (dbAuthor newsDb) authorId) (uDraftNewAuthorId ud)
   maybeDo (makeSureEntityExists "Category" (dbCategory newsDb) categoryId) (uDraftNewCategoryId ud)
   maybeDo makeSureTagsExist (uDraftNewTagIds ud)
@@ -158,18 +157,18 @@ updateDraft ud = runExceptT $ do
                        <> maybeAssignment (uDraftNewCategoryId  ud) (\x -> draftCategoryId  d <-. val_ x)
                        <> maybeAssignment (uDraftNewTextContent ud) (\x -> draftTextContent d <-. val_ x)
                        <> maybeAssignment (uDraftNewMainPhotoId ud) (\x -> draftMainPhotoId d <-. val_ x))
-                     (\d -> draftId d ==. val_ (uDraftId ud))
+                     (\d -> draftId d ==. val_ uDraftId)
 
   case uDraftNewAdditionalPhotoIds ud of
     Nothing ->
       pure ()
     Just newAdditionalPhotoIds -> do
       runDelete $ delete (dbDraftAdditionalPhoto newsDb)
-        (\dap -> draftAdditionalPhotoDraftId dap ==. val_ (uDraftId ud))
+        (\dap -> draftAdditionalPhotoDraftId dap ==. val_ uDraftId)
       let additionalPhotoToRow pId =
             DraftAdditionalPhoto
               { draftAdditionalPhotoPhotoId = pId
-              , draftAdditionalPhotoDraftId = uDraftId ud
+              , draftAdditionalPhotoDraftId = uDraftId
               }
       runInsert $ insert (dbDraftAdditionalPhoto newsDb) $
         insertValues (map additionalPhotoToRow newAdditionalPhotoIds)
@@ -179,11 +178,11 @@ updateDraft ud = runExceptT $ do
       pure ()
     Just newTagIds -> do
       runDelete $ delete (dbDraftTag newsDb)
-        (\dt -> draftTagDraftId dt ==. val_ (uDraftId ud))
+        (\dt -> draftTagDraftId dt ==. val_ uDraftId)
       let tagToRow tId =
             DraftTag
               { draftTagTagId   = tId
-              , draftTagDraftId = uDraftId ud
+              , draftTagDraftId = uDraftId
               }
       runInsert $ insert (dbDraftTag newsDb) $
         insertValues (map tagToRow newTagIds)

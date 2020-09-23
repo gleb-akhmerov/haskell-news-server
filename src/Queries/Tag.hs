@@ -36,8 +36,7 @@ createTag ct = do
 
 
 data UpdateTag = UpdateTag
-  { uTagId :: Int32
-  , uTagNewName :: Text
+  { uTagNewName :: Text
   }
   deriving (Generic, Show)
 
@@ -45,9 +44,9 @@ instance FromJSON UpdateTag where
   parseJSON = genericParseJSON defaultOptions
                 { fieldLabelModifier = camelTo2 '_' . drop (length "uTag") }
 
-updateTag :: UpdateTag -> Pg (Either String ())
-updateTag ut = runExceptT $ do
-  makeSureEntityExists "Tag" (dbTag newsDb) tagId (uTagId ut)
+updateTag :: Int32 -> UpdateTag -> Pg (Either String ())
+updateTag uTagId ut = runExceptT $ do
+  makeSureEntityExists "Tag" (dbTag newsDb) tagId uTagId
   runUpdate $ update (dbTag newsDb)
                      (\t -> tagName t <-. val_ (uTagNewName ut))
-                     (\t -> tagId t ==. val_ (uTagId ut))
+                     (\t -> tagId t ==. val_ uTagId)
