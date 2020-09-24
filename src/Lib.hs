@@ -156,6 +156,7 @@ someFunc = do
        mapM_ (liftIO . putStrLn . show) xs
 
     tagId <- createTag CreateTag { cTagName = "A" }
+
     do x <- createDraft CreateDraft
               { cDraftShortName = ""
               , cDraftAuthorId = authorId
@@ -165,8 +166,11 @@ someFunc = do
               , cDraftAdditionalPhotoIds = []
               , cDraftTagIds = [tagId]
               }
+       liftIO $ print x
        case x of
          Left _ -> pure ()
          Right dId -> publishDraft dId >> pure ()
+
+    do x <- deleteAuthor authorId
        liftIO $ print x
   rollback conn

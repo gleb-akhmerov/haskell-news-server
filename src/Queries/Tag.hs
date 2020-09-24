@@ -50,3 +50,19 @@ updateTag uTagId ut = runExceptT $ do
   runUpdate $ update (dbTag newsDb)
                      (\t -> tagName t <-. val_ (uTagNewName ut))
                      (\t -> tagId t ==. val_ uTagId)
+
+
+deleteTag :: Int32 -> Pg (Either String ())
+deleteTag dTagId = runExceptT $ do
+  makeSureEntityExists "Tag" (dbTag newsDb) tagId dTagId
+  makeSureNoReferenceExistsMtm "Tag" "Posts"
+                               (dbPostTag newsDb) postTagTagId postTagPostId
+                               (dbPost newsDb) postId postId
+                               dTagId
+  makeSureNoReferenceExistsMtm "Tag" "Drafts"
+                               (dbDraftTag newsDb) draftTagTagId draftTagDraftId
+                               (dbDraft newsDb) draftId draftId
+                               dTagId
+  runDelete $
+    delete (dbTag newsDb)
+      (\t -> tagId t ==. val_ dTagId)

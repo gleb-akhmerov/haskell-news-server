@@ -188,6 +188,21 @@ updateDraft uDraftId ud = runExceptT $ do
         insertValues (map tagToRow newTagIds)
 
 
+deleteDraft :: Int32 -> Pg (Either String ())
+deleteDraft dDraftId = runExceptT $ do
+  makeSureEntityExists "Draft" (dbDraft newsDb) draftId dDraftId
+  makeSureNoReferenceExists "Draft" "Posts" (dbPost newsDb) postId postId dDraftId
+  runDelete $
+    delete (dbDraftTag newsDb)
+      (\dt -> draftTagDraftId dt ==. val_ dDraftId)
+  runDelete $
+    delete (dbDraftAdditionalPhoto newsDb)
+      (\dt -> draftAdditionalPhotoDraftId dt ==. val_ dDraftId)
+  runDelete $
+    delete (dbDraft newsDb)
+      (\d -> draftId d ==. val_ dDraftId)
+
+
 makeSureTagsExist :: [Int32] -> ExceptT String Pg ()
 makeSureTagsExist tagIds =
   unless (null tagIds) $ do

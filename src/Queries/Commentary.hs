@@ -1,6 +1,7 @@
 module Queries.Commentary where
 
 
+import Control.Monad.Trans.Except (runExceptT)
 import Data.Int (Int32)
 import Data.Text (Text)
 
@@ -10,6 +11,7 @@ import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
 
 import BeamSchema
+import Queries.Util
 
 
 data CreateCommentary = CreateCommentary
@@ -35,3 +37,10 @@ createCommentary ct = do
           }
       ]
   pure (commentaryId commentary)
+
+
+deleteCommentary :: Int32 -> Pg (Either String ())
+deleteCommentary dCommentaryId = runExceptT $ do
+  makeSureEntityExists "Commentary" (dbCommentary newsDb) commentaryId dCommentaryId
+  runDelete $ delete (dbCommentary newsDb)
+    (\a -> commentaryId a ==. val_ dCommentaryId)

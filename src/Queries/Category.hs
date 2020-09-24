@@ -74,6 +74,16 @@ updateCategory uCategoryId uc = runExceptT $ do
                      (\c -> categoryId c ==. val_ uCategoryId)
 
 
+deleteCategory :: Int32 -> Pg (Either String ())
+deleteCategory dCategoryId = runExceptT $ do
+  makeSureEntityExists "Category" (dbCategory newsDb) categoryId dCategoryId
+  makeSureNoMaybeReferenceExists "Category" "Categories" (dbCategory newsDb) categoryParentId categoryId dCategoryId
+  makeSureNoReferenceExists "Category" "Drafts" (dbDraft newsDb) draftCategoryId draftId dCategoryId
+  makeSureNoReferenceExists "Category"  "Posts" (dbPost  newsDb)  postCategoryId  postId dCategoryId
+  runDelete $ delete (dbCategory newsDb)
+    (\c -> categoryId c ==. val_ dCategoryId)
+
+
 withCategoryTree :: DbWith (DbQ s (DbQExpr s Int32, CategoryT (DbQExpr s)))
 withCategoryTree = do
   rec catTree <- selecting $

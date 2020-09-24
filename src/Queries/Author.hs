@@ -51,3 +51,11 @@ updateAuthor uAuthorId ua = runExceptT $ do
   runUpdate $ update (dbAuthor newsDb)
                      (\a -> authorShortDescription a <-. val_ (uAuthorNewShortDescription ua))
                      (\a -> authorId a ==. val_ uAuthorId)
+
+deleteAuthor :: Int32 -> Pg (Either String ())
+deleteAuthor dAuthorId = runExceptT $ do
+  makeSureEntityExists "Author" (dbAuthor newsDb) authorId dAuthorId
+  makeSureNoReferenceExists "Author" "Drafts" (dbDraft newsDb) draftAuthorId draftId dAuthorId
+  makeSureNoReferenceExists "Author"  "Posts" (dbPost  newsDb)  postAuthorId postId dAuthorId
+  runDelete $ delete (dbAuthor newsDb)
+    (\a -> authorId a ==. val_ dAuthorId)

@@ -65,3 +65,12 @@ updateUser uUserId uu = runExceptT $ do
                        <> maybeAssignment (uUserNewAvatarId  uu) (\x -> userAvatarId  u <-. val_ x)
                        <> maybeAssignment (uUserNewIsAdmin   uu) (\x -> userIsAdmin   u <-. val_ x))
                      (\u -> userId u ==. val_ uUserId)
+
+
+deleteUser :: Int32 -> Pg (Either String ())
+deleteUser dUserId = runExceptT $ do
+  makeSureEntityExists "User" (dbUser newsDb) userId dUserId
+  makeSureNoReferenceExists "User" "Authors" (dbAuthor newsDb) authorId authorId dUserId
+  makeSureNoReferenceExists "User" "Commentaries" (dbCommentary newsDb) commentaryUserId commentaryId dUserId
+  runDelete $ delete (dbUser newsDb)
+    (\c -> userId c ==. val_ dUserId)
