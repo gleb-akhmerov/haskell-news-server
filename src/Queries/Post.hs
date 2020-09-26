@@ -56,7 +56,8 @@ postsWithCategories = do
                     , group_ author
                     , group_ category
                     , (pgArrayAgg (categoryId cTree), pgArrayAgg (categoryName cTree))
-                    , (pgArrayAgg (tagId tag), pgArrayAgg (tagName tag))
+                    , ( pgArrayAgg (tagId tag) `filterWhere_` isJust_ (tagId tag)
+                      , pgArrayAgg (tagName tag) `filterWhere_` isJust_ (tagName tag))
                     , pgArrayAgg (postAdditionalPhotoPhotoId postAdditionalPhoto)))
 
 
