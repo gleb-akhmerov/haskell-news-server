@@ -69,6 +69,8 @@ data PostFilter
   | PfTagId Int32
   | PfTagIdsIn [Int32]
   | PfTagIdsAll [Int32]
+  | PfPostNameSubstring Text
+  | PfPostContentSubstring Text
   | PfSearchSubstring Text
   deriving (Eq, Ord)
 
@@ -99,6 +101,10 @@ filterPosts filters =
               val_ (Vector.fromList tIds) `isSubsetOf_` unsafeRetype tagIds
             PfTagIdsAll tIds ->
               val_ (Vector.fromList tIds) `isSupersetOf_` unsafeRetype tagIds
+            PfPostNameSubstring substring ->
+              postShortName post `like_` val_ ("%" <> substring <> "%")
+            PfPostContentSubstring substring ->
+              postTextContent post `like_` val_ ("%" <> substring <> "%")
             PfSearchSubstring substring ->
               let ss = val_ ("%" <> substring <> "%")
               in postTextContent post `like_` ss
