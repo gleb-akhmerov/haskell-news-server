@@ -83,6 +83,6 @@ someFunc = do
        liftIO $ print x
 
     do xs <- runSelectReturningList $ selectWith $
-               applyFiltersToQuery (Set.fromList [PfSearchSubstring "AAA"])
+               filterAndSortPosts (Set.fromList [PfSearchSubstring "AAA"]) (PostOrder Descending PoPhotoCount)
        liftIO $ print xs
   rollback conn

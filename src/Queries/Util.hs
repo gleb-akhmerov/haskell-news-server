@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -8,6 +9,7 @@ import Control.Monad (unless, when)
 import Control.Monad.Trans.Except (ExceptT, throwE)
 import Data.Int (Int32)
 import Data.Maybe (fromMaybe, isNothing)
+import Data.Vector (Vector)
 
 import Database.Beam
 import Database.Beam.Postgres
@@ -100,3 +102,7 @@ maybeDo f maybeX =
   case maybeX of
     Nothing -> pure ()
     Just x  -> f x
+
+
+arrayLen :: QGenExpr ctxt Postgres s (Vector v) -> QGenExpr ctxt Postgres s Int32
+arrayLen = customExpr_ (\arr -> "array_length(" <> arr <> ", 1)")

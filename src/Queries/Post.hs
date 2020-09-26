@@ -14,6 +14,7 @@ import Data.Vector (Vector)
 import qualified Data.Vector as Vector (fromList)
 
 import Database.Beam hiding (date)
+import Database.Beam.Query.Internal (unsafeRetype)
 import Database.Beam.Postgres
 
 import BeamSchema
@@ -21,8 +22,8 @@ import Queries.Category
 import Queries.Util
 
 
-postsWithCategories
-  :: DbWith
+type PostsQuery s
+  = DbWith
        (DbQ s
          ( PostT (DbQExpr s)
          , UserT (DbQExpr s)
@@ -30,6 +31,9 @@ postsWithCategories
          , T2 s (Vector Int32) (Vector Text)
          , T2 s (Vector Int32) (Vector Text)
          , DbQExpr s (Vector Int32)))
+
+
+postsWithCategories :: PostsQuery s
 postsWithCategories = do
   catTree <- withCategoryTree
   pure $
@@ -64,17 +68,8 @@ data PostFilter
   deriving (Eq, Ord)
 
 
-applyFiltersToQuery
-  :: Set PostFilter
-  -> DbWith
-       (DbQ s
-         ( PostT (DbQExpr s)
-         , UserT (DbQExpr s)
-         , CategoryT (DbQExpr s)
-         , T2 s (Vector Int32) (Vector Text)
-         , T2 s (Vector Int32) (Vector Text)
-         , DbQExpr s (Vector Int32)))
-applyFiltersToQuery filters =
+filterPosts :: Set PostFilter -> PostsQuery s
+filterPosts filters =
   foldr applyFilter postsWithCategories filters
   where
     applyFilter flt withQuery = do
@@ -110,6 +105,7 @@ applyFiltersToQuery filters =
                            pure $ tag `like_` ss)
         pure row
 
+
 data Order
   = Ascending
   | Descending
@@ -121,3 +117,21 @@ data PostOrderBy
   | PoAuthorName
   | PoCategoryName
   | PoPhotoCount
+
+
+filterAndSortPosts :: Set PostFilter -> PostOrder -> PostsQuery s
+filterAndSortPosts filters (PostOrder ord by) =
+  applyOrdering (filterPosts filters)
+  where
+    applyOrdering q = do
+      let o = case ord of
+                Ascending  -> asc_
+                Descending -> desc_
+      postQuery <- q
+      let ordFunc (post, user, category, _, _, additionalPhotoIds) =
+            case by of
+              PoPublishedAt  -> o (postPublishedAt post)
+              PoAuthorName   -> o (unsafeRetype (concat_ [userFirstName user, " ", userLastName user]))
+              PoCategoryName -> o (unsafeRetype (categoryName category))
+              PoPhotoCount   -> o (unsafeRetype (arrayLen additionalPhotoIds))
+      pure (orderBy_ ordFunc postQuery)
