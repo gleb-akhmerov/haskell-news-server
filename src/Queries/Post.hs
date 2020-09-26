@@ -32,8 +32,8 @@ type PostsQuery s
          , AuthorT (DbQExpr s)
          , CategoryT (DbQExpr s)
          , T2 s (Vector Int32) (Vector Text)
-         , T2 s (Vector (Maybe Int32)) (Vector (Maybe Text))
-         , DbQExpr s (Vector (Maybe Int32))))
+         , T2 s (Vector Int32) (Vector Text)
+         , DbQExpr s (Vector Int32)))
 
 
 postsWithCategories :: PostsQuery s
@@ -56,9 +56,8 @@ postsWithCategories = do
                     , group_ author
                     , group_ category
                     , (pgArrayAgg (categoryId cTree), pgArrayAgg (categoryName cTree))
-                    , ( pgArrayAgg (tagId tag) `filterWhere_` isJust_ (tagId tag)
-                      , pgArrayAgg (tagName tag) `filterWhere_` isJust_ (tagName tag))
-                    , pgArrayAgg (postAdditionalPhotoPhotoId postAdditionalPhoto)))
+                    , (removeNullsAgg (pgArrayAgg (tagId tag)), removeNullsAgg (pgArrayAgg (tagName tag)))
+                    , removeNullsAgg (pgArrayAgg (postAdditionalPhotoPhotoId postAdditionalPhoto))))
 
 
 data PostFilter
@@ -97,11 +96,11 @@ filterPosts filters =
             PfCategoryId cId ->
               postCategoryId post ==. val_ cId
             PfTagId tId ->
-              val_ (Vector.fromList [tId]) `isSubsetOf_` unsafeRetype tagIds
+              val_ (Vector.fromList [tId]) `isSubsetOf_` tagIds
             PfTagIdsIn tIds ->
-              val_ (Vector.fromList tIds) `isSubsetOf_` unsafeRetype tagIds
+              val_ (Vector.fromList tIds) `isSubsetOf_` tagIds
             PfTagIdsAll tIds ->
-              val_ (Vector.fromList tIds) `isSupersetOf_` unsafeRetype tagIds
+              val_ (Vector.fromList tIds) `isSupersetOf_` tagIds
             PfPostNameSubstring substring ->
               postShortName post `like_` val_ ("%" <> substring <> "%")
             PfPostContentSubstring substring ->
@@ -114,7 +113,7 @@ filterPosts filters =
                  ||. categoryName category `like_` ss
                  ||. (subquery_ $
                         do tag <- pgUnnestArray tagNames
-                           pure $ unsafeRetype tag `like_` ss)
+                           pure $ tag `like_` ss)
         pure row
 
 
@@ -201,18 +200,18 @@ makePostAuthor user author =
     , rPostAuthorShortDescription = authorShortDescription author
     }
 
-postToReturning :: (Post, User, Author, Category, (Vector Int32, Vector Text), (Vector (Maybe Int32), Vector (Maybe Text)), Vector (Maybe Int32)) -> ReturnedPost
-postToReturning (post, user, author, _category, (catIds, catNames), (mTagIds, mTagNames), mAdditionalPhotoIds) =
+postToReturning :: (Post, User, Author, Category, (Vector Int32, Vector Text), (Vector Int32, Vector Text), Vector Int32) -> ReturnedPost
+postToReturning (post, user, author, _category, (catIds, catNames), (tagIds, tagNames), additionalPhotoIds) =
   ReturnedPost
     { rPostId = postId post
     , rPostShortName = postShortName post
     , rPostPublishedAt = postPublishedAt post
     , rPostAuthor = makePostAuthor user author
     , rPostCategory = categoryTupleToReturned (catIds, catNames)
-    , rPostTags = tagTuplesToReturned (vectorCatMaybes mTagIds, vectorCatMaybes mTagNames)
+    , rPostTags = tagTuplesToReturned (tagIds, tagNames)
     , rPostTextContent = postTextContent post
     , rPostMainPhotoId = postMainPhotoId post
-    , rPostAdditionalPhotoIds = Vector.toList (vectorCatMaybes mAdditionalPhotoIds)
+    , rPostAdditionalPhotoIds = Vector.toList additionalPhotoIds
     }
 
 getPost :: Int32 -> Pg (Maybe ReturnedPost)

@@ -8,12 +8,13 @@ module Queries.Util where
 import Control.Monad (unless, when)
 import Control.Monad.Trans.Except (ExceptT, throwE)
 import Data.Int (Int32)
-import Data.Maybe (fromMaybe, isNothing, catMaybes)
+import Data.Maybe (fromMaybe, isNothing)
 import Data.Vector (Vector)
-import qualified Data.Vector as Vector (fromList, toList)
 
 import Database.Beam
 import Database.Beam.Postgres
+import Database.Beam.Postgres.Syntax (PgExpressionSyntax(..), emit, pgParens)
+import Database.Beam.Query.Internal (QAgg)
 
 import BeamSchema
 
@@ -109,5 +110,10 @@ arrayLen :: QGenExpr ctxt Postgres s (Vector v) -> QGenExpr ctxt Postgres s Int3
 arrayLen = customExpr_ (\arr -> "array_length(" <> arr <> ", 1)")
 
 
-vectorCatMaybes :: Vector (Maybe a) -> Vector a
-vectorCatMaybes = Vector.fromList . catMaybes . Vector.toList
+removeNullsAgg :: QAgg Postgres s (Vector (Maybe a))
+               -> QAgg Postgres s (Vector a)
+removeNullsAgg (QExpr a) =
+  QExpr $ \tbl ->
+  PgExpressionSyntax $
+    emit "array_remove" <>
+    pgParens (fromPgExpression (a tbl) <> emit ", NULL")
