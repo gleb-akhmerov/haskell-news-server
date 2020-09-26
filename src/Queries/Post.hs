@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -25,6 +26,7 @@ postsWithCategories
        (DbQ s
          ( PostT (DbQExpr s)
          , UserT (DbQExpr s)
+         , CategoryT (DbQExpr s)
          , T2 s (Vector Int32) (Vector Text)
          , T2 s (Vector Int32) (Vector Text)
          , DbQExpr s (Vector Int32)))
@@ -38,10 +40,12 @@ postsWithCategories = do
        tag <- join_ (dbTag newsDb) (\t -> postTagTagId postTag ==. tagId t)
        postAdditionalPhoto <- join_ (dbPostAdditionalPhoto newsDb) (\pap -> postAdditionalPhotoPostId pap ==. postId post)
        user <- join_ (dbUser newsDb) (\u -> postAuthorId post ==. userId u)
-       pure (post, user, cTree, tag, postAdditionalPhoto)
-    & aggregate_ (\(post, user, cTree, tag, postAdditionalPhoto) ->
+       category <- join_ (dbCategory newsDb) (\c -> postCategoryId post ==. categoryId c)
+       pure (post, user, category, cTree, tag, postAdditionalPhoto)
+    & aggregate_ (\(post, user, category, cTree, tag, postAdditionalPhoto) ->
                     ( group_ post
                     , group_ user
+                    , group_ category
                     , (pgArrayAgg (categoryId cTree), pgArrayAgg (categoryName cTree))
                     , (pgArrayAgg (tagId tag), pgArrayAgg (tagName tag))
                     , pgArrayAgg (postAdditionalPhotoPhotoId postAdditionalPhoto)))
@@ -51,13 +55,12 @@ data PostFilter
   = PfPublishedAt LocalTime
   | PfPublishedAtLt LocalTime
   | PfPublishedAtGt LocalTime
-  | PfAuthorName Text Text
+  | PfAuthorName Text
   | PfCategoryId Int32
   | PfTagId Int32
   | PfTagIdsIn [Int32]
   | PfTagIdsAll [Int32]
-  | PfNameSubstring Text
-  | PfContentSubstring Text
+  | PfSearchSubstring Text
   deriving (Eq, Ord)
 
 
@@ -67,6 +70,7 @@ applyFiltersToQuery
        (DbQ s
          ( PostT (DbQExpr s)
          , UserT (DbQExpr s)
+         , CategoryT (DbQExpr s)
          , T2 s (Vector Int32) (Vector Text)
          , T2 s (Vector Int32) (Vector Text)
          , DbQExpr s (Vector Int32)))
@@ -76,7 +80,7 @@ applyFiltersToQuery filters =
     applyFilter flt withQuery = do
       postQuery <- withQuery
       pure $ do
-        row@(post, user, (_catIds, _catNames), (tagIds, _tagNames), _additionalPhotoIds) <- postQuery
+        row@(post, user, category, (_catIds, _catNames), (tagIds, tagNames), _additionalPhotoIds) <- postQuery
         guard_ $
           case flt of
             PfPublishedAt date ->
@@ -85,8 +89,8 @@ applyFiltersToQuery filters =
               postPublishedAt post <. val_ date
             PfPublishedAtGt date ->
               postPublishedAt post >. val_ date
-            PfAuthorName firstName lastName ->
-              userFirstName user ==. val_ firstName &&. userLastName user ==. val_ lastName
+            PfAuthorName name ->
+              userFirstName user `like_` val_ name ||. userLastName user `like_` val_ name
             PfCategoryId cId ->
               postCategoryId post ==. val_ cId
             PfTagId tId ->
@@ -95,8 +99,15 @@ applyFiltersToQuery filters =
               val_ (Vector.fromList tIds) `isSubsetOf_` tagIds
             PfTagIdsAll tIds ->
               val_ (Vector.fromList tIds) `isSupersetOf_` tagIds
-            _ ->
-              val_ True
+            PfSearchSubstring substring ->
+              let ss = val_ ("%" <> substring <> "%")
+              in postTextContent post `like_` ss
+                 ||. userFirstName user `like_` ss
+                 ||. userLastName user `like_` ss
+                 ||. categoryName category `like_` ss
+                 ||. (subquery_ $
+                        do tag <- pgUnnestArray tagNames
+                           pure $ tag `like_` ss)
         pure row
 
 data Order

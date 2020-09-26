@@ -3,6 +3,7 @@
 module Lib where
 
 
+import qualified Data.Set as Set (fromList)
 import Data.String (fromString)
 
 import Database.PostgreSQL.Simple (execute_, begin, rollback)
@@ -80,4 +81,8 @@ someFunc = do
 
     do x <- deleteAuthor authorId
        liftIO $ print x
+
+    do xs <- runSelectReturningList $ selectWith $
+               applyFiltersToQuery (Set.fromList [PfSearchSubstring "AAA"])
+       liftIO $ print xs
   rollback conn
