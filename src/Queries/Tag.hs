@@ -66,3 +66,33 @@ deleteTag dTagId = runExceptT $ do
   runDelete $
     delete (dbTag newsDb)
       (\t -> tagId t ==. val_ dTagId)
+
+
+data ReturnedTag = ReturnedTag
+  { rTagId :: Int32
+  , rTagName :: Text
+  }
+  deriving (Generic, Show)
+
+instance ToJSON ReturnedTag where
+  toJSON = genericToJSON defaultOptions
+             { fieldLabelModifier = camelTo2 '_' . drop (length "rTag") }
+
+tagToReturned :: Tag -> ReturnedTag
+tagToReturned t =
+  ReturnedTag
+    { rTagId   = tagId t
+    , rTagName = tagName t
+    }
+
+getTag :: Int32 -> Pg (Maybe ReturnedTag)
+getTag gTagId = do
+  mTag <- runSelectReturningOne $ select $
+               filter_ (\a -> tagId a ==. val_ gTagId)
+                       (all_ (dbTag newsDb))
+  pure (fmap tagToReturned mTag)
+
+getAllTags :: Pg [ReturnedTag]
+getAllTags = do
+  tags <- runSelectReturningList $ select $ all_ (dbTag newsDb)
+  pure (fmap tagToReturned tags)

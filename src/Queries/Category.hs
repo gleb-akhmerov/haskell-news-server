@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TypeFamilies #-}
 
 module Queries.Category where
 
@@ -9,8 +10,10 @@ import Control.Monad.Trans.Except (runExceptT)
 import Data.Function ((&))
 import qualified Data.HashMap.Strict as H
 import Data.Int (Int32)
+import Data.Maybe (fromJust)
 import Data.Text (Text)
 import Data.Vector (Vector)
+import qualified Data.Vector as Vector (zip)
 
 import Data.Aeson
 import Database.Beam
@@ -84,6 +87,53 @@ deleteCategory dCategoryId = runExceptT $ do
     (\c -> categoryId c ==. val_ dCategoryId)
 
 
+data ReturnedCategory = ReturnedCategory
+  { rCategoryId :: Int32
+  , rCategoryParent :: Maybe ReturnedCategory
+  , rCategoryName :: Text
+  }
+  deriving (Generic, Show)
+
+instance ToJSON ReturnedCategory where
+  toJSON = genericToJSON defaultOptions
+             { fieldLabelModifier = camelTo2 '_' . drop (length ("rCategory" :: String)) }
+
+categoriesToReturned :: Foldable f => f Category -> Maybe ReturnedCategory
+categoriesToReturned cats =
+  foldr f Nothing cats
+  where f c parent =
+          Just $
+            ReturnedCategory
+              { rCategoryId     = categoryId c
+              , rCategoryParent = parent
+              , rCategoryName   = categoryName c
+              }
+
+getCategory :: Int32 -> Pg (Maybe ReturnedCategory)
+getCategory gCategoryId = do
+  cats <- runSelectReturningList $ selectWith $ do
+            catTreeQuery <- withCategoryTree
+            pure $ do
+              (start, cat) <- catTreeQuery
+              guard_ (start ==. val_ gCategoryId)
+              pure cat
+  pure $ categoriesToReturned cats
+
+getAllCategories :: Pg [ReturnedCategory]
+getAllCategories = do
+  rows <- runSelectReturningList $ selectWith $ groupedCategoryIdsNames
+  pure $ fmap (fromJust . convertRow) rows
+  where
+    convertRow (ids, names) =
+      foldr convert Nothing (Vector.zip ids names)
+    convert (id_, name) parent =
+      Just $
+        ReturnedCategory
+          { rCategoryId = id_
+          , rCategoryParent = parent
+          , rCategoryName = name
+          }
+
 withCategoryTree :: DbWith (DbQ s (DbQExpr s Int32, CategoryT (DbQExpr s)))
 withCategoryTree = do
   rec catTree <- selecting $
@@ -100,15 +150,16 @@ withCategoryTree = do
       & fmap (\(start, _ord, c) -> (start, c))
 
 
-categoriesWithTrees :: DbWith (DbQ s (CategoryT (DbQExpr s), DbQExpr s (Vector Int32), DbQExpr s (Vector Text)))
-categoriesWithTrees = do
-  catTree <- withCategoryTree
+groupedCategoryIdsNames :: DbWith (DbQ s (DbQExpr s (Vector Int32), DbQExpr s (Vector Text)))
+groupedCategoryIdsNames = do
+  catTreeQuery <- withCategoryTree
   pure $
     do cat <- all_ (dbCategory newsDb)
-       (start, cTree) <- catTree
+       (start, cTree) <- catTreeQuery
        guard_ (start ==. categoryId cat)
        pure (cat, cTree)
     & aggregate_ (\(cat, cTree) ->
                     ( group_ cat
                     , pgArrayAgg (categoryId cTree)
                     , pgArrayAgg (categoryName cTree)))
+    & fmap (\(_, ids, names) -> (ids, names))

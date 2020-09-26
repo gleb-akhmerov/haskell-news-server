@@ -1,3 +1,5 @@
+{-# LANGUAGE TypeFamilies #-}
+
 module Queries.Author where
 
 
@@ -59,3 +61,33 @@ deleteAuthor dAuthorId = runExceptT $ do
   makeSureNoReferenceExists "Author"  "Posts" (dbPost  newsDb)  postAuthorId postId dAuthorId
   runDelete $ delete (dbAuthor newsDb)
     (\a -> authorId a ==. val_ dAuthorId)
+
+
+data ReturnedAuthor = ReturnedAuthor
+  { rAuthorId :: Int32
+  , rAuthorShortDescription :: Text
+  }
+  deriving (Generic, Show)
+
+instance ToJSON ReturnedAuthor where
+  toJSON = genericToJSON defaultOptions
+             { fieldLabelModifier = camelTo2 '_' . drop (length "rAuthor") }
+
+authorToReturned :: Author -> ReturnedAuthor
+authorToReturned a =
+  ReturnedAuthor
+    { rAuthorId               = authorId a
+    , rAuthorShortDescription = authorShortDescription a
+    }
+
+getAuthor :: Int32 -> Pg (Maybe ReturnedAuthor)
+getAuthor gAuthorId = do
+  mAuthor <- runSelectReturningOne $ select $
+               filter_ (\a -> authorId a ==. val_ gAuthorId)
+                       (all_ (dbAuthor newsDb))
+  pure (fmap authorToReturned mAuthor)
+
+getAllAuthors :: Pg [ReturnedAuthor]
+getAllAuthors = do
+  authors <- runSelectReturningList $ select $ all_ (dbAuthor newsDb)
+  pure (fmap authorToReturned authors)

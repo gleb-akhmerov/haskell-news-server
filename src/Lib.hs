@@ -39,13 +39,10 @@ someFunc = do
         ]
 
     do xs <- runSelectReturningList $ selectWith withCategoryTree
-       mapM_ (liftIO . putStrLn . show) xs
-
-    do xs <- runSelectReturningList $ selectWith categoriesWithTrees
-       mapM_ (liftIO . putStrLn . show) xs
+       mapM_ (liftIO . print) xs
 
     do xs <- runSelectReturningList $ selectWith postsWithCategories
-       mapM_ (liftIO . putStrLn . show) xs
+       mapM_ (liftIO . print) xs
 
     runInsert $ insert (dbPhoto newsDb) $
       insertExpressions [Photo { photoId = default_, photoContent = val_ "" }]
@@ -61,7 +58,7 @@ someFunc = do
                         , cAuthorShortDescription = ""
                         }
     do xs <- runSelectReturningList $ select $ all_ (dbUser newsDb)
-       mapM_ (liftIO . putStrLn . show) xs
+       mapM_ (liftIO . print) xs
 
     tagId <- createTag CreateTag { cTagName = "A" }
 
@@ -84,5 +81,11 @@ someFunc = do
 
     do xs <- runSelectReturningList $ selectWith $
                filterAndSortPosts (Set.fromList [PfSearchSubstring "AAA"]) (PostOrder Descending PoPhotoCount)
-       liftIO $ print xs
+       mapM_ (liftIO . print) xs
+
+    do x <- getCategory 4
+       liftIO $ print x
+
+    do xs <- getAllCategories
+       mapM_ (liftIO . print) xs
   rollback conn

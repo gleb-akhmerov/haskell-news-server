@@ -8,6 +8,7 @@ import Control.Monad (unless)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
 import Data.Int (Int32)
 import Data.Text (Text)
+import Data.Time (LocalTime)
 import qualified Data.Vector as Vector (fromList)
 
 import Data.Aeson
@@ -201,6 +202,46 @@ deleteDraft dDraftId = runExceptT $ do
   runDelete $
     delete (dbDraft newsDb)
       (\d -> draftId d ==. val_ dDraftId)
+
+
+data ReturnedDraft = ReturnedDraft
+  { rDraftId          :: Int32
+  , rDraftShortName   :: Text
+  , rDraftCreatedAt   :: LocalTime
+  , rDraftAuthorId    :: Int32
+  , rDraftCategoryId  :: Int32
+  , rDraftTextContent :: Text
+  , rDraftMainPhotoId :: Int32
+  }
+  deriving (Generic, Show)
+
+instance ToJSON ReturnedDraft where
+  toJSON = genericToJSON defaultOptions
+             { fieldLabelModifier = camelTo2 '_' . drop (length "rDraft") }
+
+draftToReturned :: Draft -> ReturnedDraft
+draftToReturned d =
+  ReturnedDraft
+    { rDraftId = draftId d
+    , rDraftShortName = draftShortName d
+    , rDraftCreatedAt = draftCreatedAt d
+    , rDraftAuthorId = draftAuthorId d
+    , rDraftCategoryId = draftCategoryId d
+    , rDraftTextContent = draftTextContent d
+    , rDraftMainPhotoId = draftMainPhotoId d
+    }
+
+getDraft :: Int32 -> Pg (Maybe ReturnedDraft)
+getDraft gDraftId = do
+  mDraft <- runSelectReturningOne $ select $
+              filter_ (\a -> draftId a ==. val_ gDraftId)
+                      (all_ (dbDraft newsDb))
+  pure (fmap draftToReturned mDraft)
+
+getAllDrafts :: Pg [ReturnedDraft]
+getAllDrafts = do
+  drafts <- runSelectReturningList $ select $ all_ (dbDraft newsDb)
+  pure (fmap draftToReturned drafts)
 
 
 makeSureTagsExist :: [Int32] -> ExceptT String Pg ()

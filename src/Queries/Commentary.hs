@@ -44,3 +44,37 @@ deleteCommentary dCommentaryId = runExceptT $ do
   makeSureEntityExists "Commentary" (dbCommentary newsDb) commentaryId dCommentaryId
   runDelete $ delete (dbCommentary newsDb)
     (\a -> commentaryId a ==. val_ dCommentaryId)
+
+
+data ReturnedCommentary = ReturnedCommentary
+  { rCommentaryId :: Int32
+  , rCommentaryUserId :: Int32
+  , rCommentaryPostId :: Int32
+  , rCommentaryContent :: Text
+  }
+  deriving (Generic, Show)
+
+instance ToJSON ReturnedCommentary where
+  toJSON = genericToJSON defaultOptions
+             { fieldLabelModifier = camelTo2 '_' . drop (length "rCommentary") }
+
+commentaryToReturned :: Commentary -> ReturnedCommentary
+commentaryToReturned c =
+  ReturnedCommentary
+    { rCommentaryId      = commentaryId c
+    , rCommentaryUserId  = commentaryUserId c
+    , rCommentaryPostId  = commentaryPostId c
+    , rCommentaryContent = commentaryContent c
+    }
+
+getCommentary :: Int32 -> Pg (Maybe ReturnedCommentary)
+getCommentary gCommentaryId = do
+  mCommentary <- runSelectReturningOne $ select $
+               filter_ (\a -> commentaryId a ==. val_ gCommentaryId)
+                       (all_ (dbCommentary newsDb))
+  pure (fmap commentaryToReturned mCommentary)
+
+getAllCommentaries :: Pg [ReturnedCommentary]
+getAllCommentaries = do
+  commentaries <- runSelectReturningList $ select $ all_ (dbCommentary newsDb)
+  pure (fmap commentaryToReturned commentaries)
