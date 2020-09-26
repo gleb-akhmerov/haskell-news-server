@@ -62,6 +62,8 @@ someFunc = do
 
     tagId <- createTag CreateTag { cTagName = "A" }
 
+    liftIO $ putStrLn "Publishing"
+
     do x <- createDraft CreateDraft
               { cDraftShortName = ""
               , cDraftAuthorId = authorId
@@ -74,18 +76,22 @@ someFunc = do
        liftIO $ print x
        case x of
          Left _ -> pure ()
-         Right dId -> publishDraft dId >> pure ()
+         Right dId -> publishDraft dId >>= (liftIO . print)
+
+    liftIO $ putStrLn "Published"
 
     do x <- deleteAuthor authorId
        liftIO $ print x
-
-    do xs <- runSelectReturningList $ selectWith $
-               filterAndSortPosts (Set.fromList [PfSearchSubstring "AAA"]) (PostOrder Descending PoPhotoCount)
-       mapM_ (liftIO . print) xs
 
     do x <- getCategory 4
        liftIO $ print x
 
     do xs <- getAllCategories
+       mapM_ (liftIO . print) xs
+
+    do xs <- getPosts (Set.fromList []) Nothing
+       mapM_ (liftIO . print) xs
+
+    do xs <- getPosts (Set.fromList [PfTagIdsAll [tagId]]) (Just (PostOrder Descending PoPhotoCount))
        mapM_ (liftIO . print) xs
   rollback conn

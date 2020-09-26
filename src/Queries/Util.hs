@@ -8,8 +8,9 @@ module Queries.Util where
 import Control.Monad (unless, when)
 import Control.Monad.Trans.Except (ExceptT, throwE)
 import Data.Int (Int32)
-import Data.Maybe (fromMaybe, isNothing)
+import Data.Maybe (fromMaybe, isNothing, catMaybes)
 import Data.Vector (Vector)
+import qualified Data.Vector as Vector (fromList, toList)
 
 import Database.Beam
 import Database.Beam.Postgres
@@ -106,3 +107,7 @@ maybeDo f maybeX =
 
 arrayLen :: QGenExpr ctxt Postgres s (Vector v) -> QGenExpr ctxt Postgres s Int32
 arrayLen = customExpr_ (\arr -> "array_length(" <> arr <> ", 1)")
+
+
+vectorCatMaybes :: Vector (Maybe a) -> Vector a
+vectorCatMaybes = Vector.fromList . catMaybes . Vector.toList

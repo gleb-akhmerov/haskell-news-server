@@ -119,13 +119,10 @@ getCategory gCategoryId = do
               pure cat
   pure $ categoriesToReturned cats
 
-getAllCategories :: Pg [ReturnedCategory]
-getAllCategories = do
-  rows <- runSelectReturningList $ selectWith $ groupedCategoryIdsNames
-  pure $ fmap (fromJust . convertRow) rows
+categoryTupleToReturned :: (Vector Int32, Vector Text) -> ReturnedCategory
+categoryTupleToReturned (ids, names) =
+  fromJust $ foldr convert Nothing (Vector.zip ids names)
   where
-    convertRow (ids, names) =
-      foldr convert Nothing (Vector.zip ids names)
     convert (id_, name) parent =
       Just $
         ReturnedCategory
@@ -133,6 +130,11 @@ getAllCategories = do
           , rCategoryParent = parent
           , rCategoryName = name
           }
+
+getAllCategories :: Pg [ReturnedCategory]
+getAllCategories = do
+  rows <- runSelectReturningList $ selectWith $ groupedCategoryIdsNames
+  pure $ fmap categoryTupleToReturned rows
 
 withCategoryTree :: DbWith (DbQ s (DbQExpr s Int32, CategoryT (DbQExpr s)))
 withCategoryTree = do
