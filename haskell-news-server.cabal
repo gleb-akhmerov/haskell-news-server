@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a02b823d347742c352e32d69e437ed3326b1b6b45294aef7b5fc26bc44ed5c7c
+-- hash: c2b583807c986124d18249d4626042a987c10202f00834f4b677b7b3842b0d0b
 
 name:           haskell-news-server
 version:        0.1.0.0
@@ -34,6 +34,7 @@ library
       Queries.Category
       Queries.Commentary
       Queries.Draft
+      Queries.Photo
       Queries.Post
       Queries.Tag
       Queries.User
@@ -51,12 +52,15 @@ library
     , beam-postgres
     , bytestring
     , containers
+    , http-types
     , postgresql-simple
     , text
     , time
     , transformers
     , unordered-containers
     , vector
+    , wai
+    , warp
   default-language: Haskell2010
 
 executable haskell-news-server-exe
@@ -75,12 +79,15 @@ executable haskell-news-server-exe
     , bytestring
     , containers
     , haskell-news-server
+    , http-types
     , postgresql-simple
     , text
     , time
     , transformers
     , unordered-containers
     , vector
+    , wai
+    , warp
   default-language: Haskell2010
 
 test-suite haskell-news-server-test
@@ -101,10 +108,13 @@ test-suite haskell-news-server-test
     , containers
     , haskell-news-server
     , hspec
+    , http-types
     , postgresql-simple
     , text
     , time
     , transformers
     , unordered-containers
     , vector
+    , wai
+    , warp
   default-language: Haskell2010

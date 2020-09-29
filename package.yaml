@@ -31,12 +31,15 @@ dependencies:
 - beam-core
 - beam-postgres
 - containers
+- http-types
 - postgresql-simple
 - text
 - time
 - transformers
 - unordered-containers
 - vector
+- wai
+- warp
 
 library:
   source-dirs: src
