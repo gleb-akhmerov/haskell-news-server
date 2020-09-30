@@ -3,18 +3,23 @@
 module Main where
 
 
-import Data.Bits (xor)
-import Data.ByteString (ByteString)
-import Data.ByteString.Lazy (toStrict)
-import Data.ByteString.Builder (byteString, stringUtf8)
-import Data.Int (Int32)
-import Data.Text (Text)
+import           Control.Applicative (liftA2)
+import           Data.Bits (xor)
+import           Data.ByteString (ByteString)
+import qualified Data.ByteString.Char8 as BS (unpack)
+import           Data.ByteString.Lazy (toStrict)
+import           Data.ByteString.Builder (byteString, stringUtf8)
+import           Data.Int (Int32)
+import           Data.Maybe (catMaybes)
+import qualified Data.Set as Set (fromList)
+import           Data.Text (Text)
+import           Data.Text.Encoding (decodeUtf8')
 import qualified Data.Text as T (unpack)
-import Text.Read (readMaybe)
+import           Text.Read (readMaybe)
 
 import Data.Aeson
 import Database.Beam.Postgres
-import Network.HTTP.Types (status200, status400, status404, hContentType, Status, ResponseHeaders)
+import Network.HTTP.Types
 import Network.Wai
 import Network.Wai.Handler.Warp (run)
 import Network.Wai.Parse (parseRequestBody, lbsBackEnd, FileInfo(..))
@@ -24,8 +29,10 @@ import Queries.Category
 import Queries.Commentary
 import Queries.Draft
 import Queries.Photo
+import Queries.Post
 import Queries.Tag
 import Queries.User
+import Queries.Util
 
 
 matchRoute :: ByteString -> [Text] -> ByteString -> [Text] -> Bool
@@ -36,8 +43,8 @@ matchRoute method path rMethod rPath =
      && length path == length rPath
      && all match (zip path rPath)
 
-responseBS :: Status -> ResponseHeaders -> ByteString -> Response
-responseBS s h = responseBuilder s h . byteString
+responseBs :: Status -> ResponseHeaders -> ByteString -> Response
+responseBs s h = responseBuilder s h . byteString
 
 notFound :: Response
 notFound = responseBuilder status404 [] "Not found"
@@ -51,11 +58,17 @@ badRequestReason err = responseBuilder status400 [] (stringUtf8 err)
 readMaybeText :: Read a => Text -> Maybe a
 readMaybeText = readMaybe . T.unpack
 
+readMaybeBs :: Read a => ByteString -> Maybe a
+readMaybeBs = readMaybe . BS.unpack
+
 responseJson :: ToJSON a => a -> Response
 responseJson = responseBuilder
   status200
   [(hContentType, "application/json")]
   . fromEncoding . toEncoding
+
+decodeUtf8Maybe :: ByteString -> Maybe Text
+decodeUtf8Maybe = rightToMaybe . decodeUtf8'
 
 hdlGetPhoto :: (Pg (Maybe ByteString) -> IO (Maybe ByteString)) -> Text -> IO Response
 hdlGetPhoto runPg pIdText =
@@ -66,7 +79,7 @@ hdlGetPhoto runPg pIdText =
         Nothing ->
           notFound
         Just photoBytes ->
-          responseBS status200 [] photoBytes
+          responseBs status200 [] photoBytes
     _ ->
       pure badRequest
 
@@ -123,6 +136,44 @@ hdlPublishDraft runPg dIdText =
           responseJson (object ["id" .= newId])
     _ ->
       pure badRequest
+
+maybeParseOrderBy :: ByteString -> Maybe PostOrderBy
+maybeParseOrderBy x = case x of
+  "published_at"  -> Just PoPublishedAt
+  "author_name"   -> Just PoAuthorName
+  "category_name" -> Just PoCategoryName
+  "photo_count"   -> Just PoPhotoCount
+  _               -> Nothing
+
+maybeParseOrder :: ByteString -> Maybe Order
+maybeParseOrder x = case x of
+  "asc"  -> Just Ascending
+  "desc" -> Just Descending
+  _      -> Nothing
+
+maybeParseFilter :: SimpleQueryItem -> Maybe PostFilter
+maybeParseFilter (k, v) = case k of
+  "published_at"     -> PfPublishedAt   <$> readMaybeBs v
+  "published_at__lt" -> PfPublishedAtLt <$> readMaybeBs v
+  "published_at__gt" -> PfPublishedAtGt <$> readMaybeBs v
+  "author_name"      -> PfAuthorName    <$> decodeUtf8Maybe v
+  "category"         -> PfCategoryId    <$> readMaybeBs v
+  "tag"              -> PfTagId         <$> readMaybeBs v
+  "tags__in"         -> PfTagIdsIn      <$> readMaybeBs v
+  "tags__all"        -> PfTagIdsAll     <$> readMaybeBs v
+  "post_name"        -> PfPostNameSubstring    <$> decodeUtf8Maybe v
+  "post_content"     -> PfPostContentSubstring <$> decodeUtf8Maybe v
+  "search"           -> PfSearchSubstring      <$> decodeUtf8Maybe v
+  _                  -> Nothing
+
+hdlGetPostsFiltered :: (Pg [ReturnedPost] -> IO [ReturnedPost]) -> SimpleQuery -> IO Response
+hdlGetPostsFiltered runPg query = do
+  let mOrder   = lookup "order"    query >>= maybeParseOrder
+      mOrderBy = lookup "order_by" query >>= maybeParseOrderBy
+      mPostOrder = liftA2 PostOrder mOrder mOrderBy
+  let filters = Set.fromList (catMaybes (fmap maybeParseFilter query))
+  posts <- runPg $ getPosts filters mPostOrder
+  pure $ responseJson posts
 
 hdlGetEntity :: ToJSON a => (Pg (Maybe a) -> IO (Maybe a)) -> (Int32 -> Pg (Maybe a)) -> Text -> IO Response
 hdlGetEntity runPg getEntity eIdText =
@@ -251,6 +302,9 @@ main = do
               ("GET",    ["posts", id_, "comments"])      -> hdlGetEntity        runPg getPostCommentaries id_
               ("POST",   ["posts", id_, "comments"])      -> hdlPostCommentary   runPg undefined id_ req
               ("DELETE", ["posts", pId, "comments", cId]) -> hdlDeleteCommentary runPg pId cId
+              
+              ("GET",    ["posts"])           -> hdlGetPostsFiltered runPg (parseSimpleQuery (rawQueryString req))
+              ("GET",    ["posts", id_])      -> hdlGetEntity        runPg getPost id_
 
               _ -> pure notFound
           send response
