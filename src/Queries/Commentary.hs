@@ -15,9 +15,7 @@ import Queries.Util
 
 
 data CreateCommentary = CreateCommentary
-  { cCommentaryUserId :: Int32
-  , cCommentaryPostId :: Int32
-  , cCommentaryContent :: Text
+  { cCommentaryContent :: Text
   }
   deriving (Generic, Show)
 
@@ -25,22 +23,25 @@ instance FromJSON CreateCommentary where
   parseJSON = genericParseJSON defaultOptions
                 { fieldLabelModifier = camelTo2 '_' . drop (length "cCommentary") }
 
-createCommentary :: CreateCommentary -> Pg Int32
-createCommentary ct = do
+createCommentary :: Int32 -> Int32 -> CreateCommentary -> Pg (Either String Int32)
+createCommentary cCommentaryUserId cCommentaryPostId ct = runExceptT $ do
+  makeSureEntityExists "User" (dbUser newsDb) userId cCommentaryUserId
+  makeSureEntityExists "Post" (dbPost newsDb) postId cCommentaryPostId
   [commentary] <- runInsertReturningList $ insert (dbCommentary newsDb) $
     insertExpressions
       [ Commentary
           { commentaryId      = default_
-          , commentaryUserId  = val_ (cCommentaryUserId ct)
-          , commentaryPostId  = val_ (cCommentaryPostId ct)
+          , commentaryUserId  = val_ cCommentaryUserId
+          , commentaryPostId  = val_ cCommentaryPostId
           , commentaryContent = val_ (cCommentaryContent ct)
           }
       ]
   pure (commentaryId commentary)
 
 
-deleteCommentary :: Int32 -> Pg (Either String ())
-deleteCommentary dCommentaryId = runExceptT $ do
+deleteCommentary :: Int32 -> Int32 -> Pg (Either String ())
+deleteCommentary dPostId dCommentaryId = runExceptT $ do
+  makeSureEntityExists "Post" (dbPost newsDb) postId dPostId
   makeSureEntityExists "Commentary" (dbCommentary newsDb) commentaryId dCommentaryId
   runDelete $ delete (dbCommentary newsDb)
     (\a -> commentaryId a ==. val_ dCommentaryId)
@@ -67,14 +68,13 @@ commentaryToReturned c =
     , rCommentaryContent = commentaryContent c
     }
 
-getCommentary :: Int32 -> Pg (Maybe ReturnedCommentary)
-getCommentary gCommentaryId = do
-  mCommentary <- runSelectReturningOne $ select $
-               filter_ (\a -> commentaryId a ==. val_ gCommentaryId)
-                       (all_ (dbCommentary newsDb))
-  pure (fmap commentaryToReturned mCommentary)
-
-getAllCommentaries :: Pg [ReturnedCommentary]
-getAllCommentaries = do
-  commentaries <- runSelectReturningList $ select $ all_ (dbCommentary newsDb)
-  pure (fmap commentaryToReturned commentaries)
+getPostCommentaries :: Int32 -> Pg (Maybe [ReturnedCommentary])
+getPostCommentaries gPostId = fmap rightToMaybe $ runExceptT $ do
+  makeSureEntityExists "Post" (dbPost newsDb) postId gPostId
+  comments <- runSelectReturningList $ select $ do
+                post <- filter_ (\p -> postId p ==. val_ gPostId)
+                                (all_ (dbPost newsDb))
+                commentary <- join_ (dbCommentary newsDb)
+                                    (\c -> commentaryPostId c ==. postId post)
+                pure commentary
+  pure (fmap commentaryToReturned comments)

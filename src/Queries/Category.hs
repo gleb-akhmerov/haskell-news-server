@@ -35,8 +35,9 @@ instance FromJSON CreateCategory where
   parseJSON = genericParseJSON defaultOptions
                 { fieldLabelModifier = camelTo2 '_' . drop (length ("cCategory" :: String)) }
 
-createCategory :: CreateCategory -> Pg Int32
-createCategory cc = do
+createCategory :: CreateCategory -> Pg (Either String Int32)
+createCategory cc = runExceptT $ do
+  maybeDo (makeSureEntityExists "Category" (dbCategory newsDb) categoryId) (cCategoryParentId cc)
   [category] <- runInsertReturningList $ insert (dbCategory newsDb) $
     insertExpressions
       [ Category { categoryId       = default_

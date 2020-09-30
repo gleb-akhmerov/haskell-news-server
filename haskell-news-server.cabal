@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c2b583807c986124d18249d4626042a987c10202f00834f4b677b7b3842b0d0b
+-- hash: 1de0aaae8f00da6fb0a1d046fe304a8a3266395852098d5c2c323302438c0fed
 
 name:           haskell-news-server
 version:        0.1.0.0
@@ -60,6 +60,7 @@ library
     , unordered-containers
     , vector
     , wai
+    , wai-extra
     , warp
   default-language: Haskell2010
 
@@ -87,6 +88,7 @@ executable haskell-news-server-exe
     , unordered-containers
     , vector
     , wai
+    , wai-extra
     , warp
   default-language: Haskell2010
 
@@ -116,5 +118,6 @@ test-suite haskell-news-server-test
     , unordered-containers
     , vector
     , wai
+    , wai-extra
     , warp
   default-language: Haskell2010

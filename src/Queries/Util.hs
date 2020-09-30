@@ -106,6 +106,10 @@ maybeDo f maybeX =
     Just x  -> f x
 
 
+rightToMaybe :: Either a b -> Maybe b
+rightToMaybe = either (const Nothing) Just
+
+
 arrayLen :: QGenExpr ctxt Postgres s (Vector v) -> QGenExpr ctxt Postgres s Int32
 arrayLen = customExpr_ (\arr -> "array_length(" <> arr <> ", 1)")
 
