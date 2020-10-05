@@ -263,10 +263,10 @@ hdlPutEntity updateEntity eIdText mBody = do
       pure badRequest
 
 data Auth
-  = AAdmin
+  = AUser
   | AAuthor
-  | AUser
-  deriving Eq
+  | AAdmin
+  deriving (Eq, Ord)
 
 withAuth :: Auth -> SimpleQuery -> Pg Response -> Pg Response
 withAuth auth query resp = do
@@ -284,7 +284,7 @@ withAuth auth query resp = do
           let userAuth = if | rUserIsAdmin user -> AAdmin
                             | isJust mAuthor    -> AAuthor
                             | otherwise         -> AUser
-          if | userAuth == auth -> resp
+          if | userAuth >= auth -> resp
              | auth == AAdmin   -> pure notFound
              | otherwise        -> pure forbidden
 
