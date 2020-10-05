@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 1de0aaae8f00da6fb0a1d046fe304a8a3266395852098d5c2c323302438c0fed
+-- hash: f7d7fe6e2e07d701e0bb5f41ddd0c63d64ac89df1444d7f3ad8fded41018fa73
 
 name:           haskell-news-server
 version:        0.1.0.0
@@ -43,7 +43,7 @@ library
       Paths_haskell_news_server
   hs-source-dirs:
       src
-  default-extensions: DeriveGeneric ScopedTypeVariables RecordWildCards
+  default-extensions: DeriveGeneric ScopedTypeVariables RecordWildCards MultiWayIf
   ghc-options: -Wall
   build-depends:
       aeson
@@ -70,7 +70,7 @@ executable haskell-news-server-exe
       Paths_haskell_news_server
   hs-source-dirs:
       app
-  default-extensions: DeriveGeneric ScopedTypeVariables RecordWildCards
+  default-extensions: DeriveGeneric ScopedTypeVariables RecordWildCards MultiWayIf
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
   build-depends:
       aeson
@@ -99,7 +99,7 @@ test-suite haskell-news-server-test
       Paths_haskell_news_server
   hs-source-dirs:
       test
-  default-extensions: DeriveGeneric ScopedTypeVariables RecordWildCards
+  default-extensions: DeriveGeneric ScopedTypeVariables RecordWildCards MultiWayIf
   ghc-options: -threaded -rtsopts -with-rtsopts=-N -Wall
   build-depends:
       aeson

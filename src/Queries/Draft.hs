@@ -7,6 +7,7 @@ module Queries.Draft where
 import Control.Monad (unless)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
 import Data.Int (Int32)
+import Data.Maybe (isJust)
 import Data.Text (Text)
 import Data.Time (LocalTime)
 import qualified Data.Vector as Vector (fromList)
@@ -241,6 +242,15 @@ getAllDrafts :: Pg [ReturnedDraft]
 getAllDrafts = do
   drafts <- runSelectReturningList $ select $ all_ (dbDraft newsDb)
   pure (fmap draftToReturned drafts)
+
+
+isDraftByAuthor :: Int32 -> Int32 -> Pg Bool
+isDraftByAuthor gDraftId gAuthorId = do
+  mDraft <- runSelectReturningOne $ select $
+              filter_ (\d -> draftId d ==. val_ gDraftId
+                             &&. draftAuthorId d ==. val_ gAuthorId)
+                      (all_ (dbDraft newsDb))
+  pure (isJust mDraft)
 
 
 makeSureTagsExist :: [Int32] -> ExceptT String Pg ()

@@ -23,6 +23,7 @@ default-extensions:
 - DeriveGeneric
 - ScopedTypeVariables
 - RecordWildCards
+- MultiWayIf
 
 dependencies:
 - aeson

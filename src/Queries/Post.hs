@@ -7,6 +7,7 @@ module Queries.Post where
 
 import Data.Function ((&))
 import Data.Int (Int32)
+import Data.Maybe (isJust)
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Time (LocalTime)
@@ -231,3 +232,11 @@ getPosts filters mOrder = do
           Just order -> filterAndSortPosts filters order
   posts <- runSelectReturningList $ selectWith postsQuery
   pure (fmap postToReturning posts)
+
+isCommentByUser :: Int32 -> Int32 -> Pg Bool
+isCommentByUser gCommentId gUserId = do
+  mComment <- runSelectReturningOne $ select $
+                filter_ (\c -> commentaryId c ==. val_ gCommentId
+                               &&. commentaryUserId c ==. val_ gUserId)
+                        (all_ (dbCommentary newsDb))
+  pure (isJust mComment)
