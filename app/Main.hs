@@ -119,9 +119,9 @@ hdlDeleteCommentary postIdText comIdText =
     _ ->
       pure badRequest
 
-hdlPostCommentary :: Text -> Text -> Maybe LBS.ByteString -> Pg Response
-hdlPostCommentary uIdText pIdText mBody = do
-  case (readMaybeText uIdText, readMaybeText pIdText, mBody >>= decode) of
+hdlPostCommentary :: Maybe ByteString -> Text -> Maybe LBS.ByteString -> Pg Response
+hdlPostCommentary mUIdText pIdText mBody = do
+  case (mUIdText >>= readMaybeBs, readMaybeText pIdText, mBody >>= decode) of
     (Just uId, Just pId, Just entity) -> do
       eitherRes <- createCommentary uId pId entity
       pure $ case eitherRes of
@@ -183,9 +183,9 @@ hdlGetPostsFiltered query = do
   posts <- getPosts filters mPostOrder
   pure $ responseJson posts
 
-hdlPostDraft :: Text -> Maybe LBS.ByteString -> Pg Response
-hdlPostDraft authorIdText mBody = do
-  case (readMaybeText authorIdText, mBody >>= decode) of
+hdlPostDraft :: Maybe ByteString -> Maybe LBS.ByteString -> Pg Response
+hdlPostDraft mAuthorIdText mBody = do
+  case (mAuthorIdText >>= readMaybeBs, mBody >>= decode) of
     (Just authorId, Just entity) -> do
       eitherRes <- createDraft authorId entity
       pure $ case eitherRes of
@@ -346,7 +346,7 @@ main = do
 
         ("GET",    ["drafts"])          -> withAuth AAuthor query $ hdlGetAllEntities getAllDrafts
         ("GET",    ["drafts", id_])     -> withDraftAuth id_ query $ hdlGetEntity getDraft id_
-        ("POST",   ["drafts"])          -> withAuth AAuthor query $ hdlPostDraft undefined mBody
+        ("POST",   ["drafts"])          -> withAuth AAuthor query $ hdlPostDraft (lookup "user_id" query) mBody
         ("POST",   ["drafts", id_, "publish"]) -> withDraftAuth id_ query $ hdlPublishDraft id_
         ("PUT",    ["drafts", id_])     -> withDraftAuth id_ query $ hdlPutEntity updateDraft id_ mBody
         ("DELETE", ["drafts", id_])     -> withDraftAuth id_ query $ hdlDeleteEntity deleteDraft id_
@@ -355,7 +355,7 @@ main = do
         ("POST",   ["photos"])          -> withAuth AUser query $ hdlPostPhoto mBody
 
         ("GET",    ["posts", id_, "comments"])      -> withAuth AUser query $ hdlGetEntity getPostCommentaries id_
-        ("POST",   ["posts", id_, "comments"])      -> withAuth AUser query $ hdlPostCommentary undefined id_ mBody
+        ("POST",   ["posts", id_, "comments"])      -> withAuth AUser query $ hdlPostCommentary (lookup "user_id" query) id_ mBody
         ("DELETE", ["posts", pId, "comments", cId]) -> withCommentAuth cId query $ hdlDeleteCommentary pId cId
         
         ("GET",    ["posts"])           -> withAuth AUser query $ hdlGetPostsFiltered query
