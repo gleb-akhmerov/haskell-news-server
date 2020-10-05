@@ -22,7 +22,6 @@ import Queries.Util
 
 data CreateDraft = CreateDraft
   { cDraftShortName :: Text
-  , cDraftAuthorId :: Int32
   , cDraftCategoryId :: Int32
   , cDraftTextContent :: Text
   , cDraftMainPhotoId :: Int32
@@ -35,9 +34,9 @@ instance FromJSON CreateDraft where
   parseJSON = genericParseJSON defaultOptions
                 { fieldLabelModifier = camelTo2 '_' . drop (length "cDraft") }
 
-createDraft :: CreateDraft -> Pg (Either String Int32)
-createDraft cd = runExceptT $ do
-  makeSureEntityExists "Author" (dbAuthor newsDb) authorId (cDraftAuthorId cd)
+createDraft :: Int32 -> CreateDraft -> Pg (Either String Int32)
+createDraft cDraftAuthorId cd = runExceptT $ do
+  makeSureEntityExists "Author" (dbAuthor newsDb) authorId cDraftAuthorId
   makeSureEntityExists "Category" (dbCategory newsDb) categoryId (cDraftCategoryId cd)
   makeSureEntityExists "Photo" (dbPhoto newsDb) photoId (cDraftMainPhotoId cd)
   makeSureTagsExist (cDraftTagIds cd)
@@ -49,7 +48,7 @@ createDraft cd = runExceptT $ do
           { draftId          = default_
           , draftShortName   = val_ (cDraftShortName cd)
           , draftCreatedAt   = now_
-          , draftAuthorId    = val_ (cDraftAuthorId cd)
+          , draftAuthorId    = val_ cDraftAuthorId
           , draftCategoryId  = val_ (cDraftCategoryId cd)
           , draftTextContent = val_ (cDraftTextContent cd)
           , draftMainPhotoId = val_ (cDraftMainPhotoId cd)

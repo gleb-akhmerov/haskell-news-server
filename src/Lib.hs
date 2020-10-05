@@ -64,9 +64,8 @@ someFunc = do
 
     liftIO $ putStrLn "Publishing"
 
-    do x <- createDraft CreateDraft
+    do x <- createDraft authorId CreateDraft
               { cDraftShortName = ""
-              , cDraftAuthorId = authorId
               , cDraftCategoryId = 1
               , cDraftTextContent = ""
               , cDraftMainPhotoId = 1

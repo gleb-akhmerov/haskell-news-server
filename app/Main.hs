@@ -175,6 +175,24 @@ hdlGetPostsFiltered runPg query = do
   posts <- runPg $ getPosts filters mPostOrder
   pure $ responseJson posts
 
+hdlPostDraft :: (Pg (Either String Int32) -> IO (Either String Int32)) -> Text -> Request -> IO Response
+hdlPostDraft runPg authorIdText req = do
+  (_, files) <- parseRequestBody lbsBackEnd req
+  case files of
+    [(_,fileInfo)] ->
+      case (readMaybeText authorIdText, decode (fileContent fileInfo)) of
+        (Just authorId, Just entity) -> do
+          eitherRes <- runPg $ createDraft authorId entity
+          pure $ case eitherRes of
+            Left err ->
+              badRequestReason err
+            Right newId ->
+              responseJson (object ["id" .= newId])
+        _ ->
+          pure badRequest
+    _ ->
+      pure badRequest
+
 hdlGetEntity :: ToJSON a => (Pg (Maybe a) -> IO (Maybe a)) -> (Int32 -> Pg (Maybe a)) -> Text -> IO Response
 hdlGetEntity runPg getEntity eIdText =
   case readMaybeText eIdText of
@@ -291,7 +309,7 @@ main = do
 
               ("GET",    ["drafts"])          -> hdlGetAllEntities   runPg getAllDrafts
               ("GET",    ["drafts", id_])     -> hdlGetEntity        runPg getDraft id_
-              ("POST",   ["drafts"])          -> hdlPostEntityEither runPg createDraft req
+              ("POST",   ["drafts"])          -> hdlPostDraft        runPg undefined req
               ("POST",   ["drafts", id_, "publish"]) -> hdlPublishDraft runPg id_
               ("PUT",    ["drafts", id_])     -> hdlPutEntity        runPg updateDraft id_ req
               ("DELETE", ["drafts", id_])     -> hdlDeleteEntity     runPg deleteDraft id_
