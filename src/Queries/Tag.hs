@@ -2,6 +2,7 @@ module Queries.Tag where
 
 
 import Control.Monad.Trans.Except (runExceptT)
+import Data.Function ((&))
 import Data.Int (Int32)
 import Data.Text (Text)
 
@@ -92,7 +93,10 @@ getTag gTagId = do
                        (all_ (dbTag newsDb))
   pure (fmap tagToReturned mTag)
 
-getAllTags :: Pg [ReturnedTag]
-getAllTags = do
-  tags <- runSelectReturningList $ select $ all_ (dbTag newsDb)
+getAllTags :: Integer -> Pg [ReturnedTag]
+getAllTags pageNum = do
+  tags <- runSelectReturningList $ select $
+            all_ (dbTag newsDb)
+            & offset_ (20 * (pageNum - 1))
+            & limit_ 20
   pure (fmap tagToReturned tags)

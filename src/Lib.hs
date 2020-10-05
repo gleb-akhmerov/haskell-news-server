@@ -85,12 +85,12 @@ someFunc = do
     do x <- getCategory 4
        liftIO $ print x
 
-    do xs <- getAllCategories
+    do xs <- getAllCategories 1
        mapM_ (liftIO . print) xs
 
-    do xs <- getPosts (Set.fromList []) Nothing
+    do xs <- getPosts (Set.fromList []) Nothing 1
        mapM_ (liftIO . print) xs
 
-    do xs <- getPosts (Set.fromList [PfTagIdsAll [tagId]]) (Just (PostOrder Descending PoPhotoCount))
+    do xs <- getPosts (Set.fromList [PfTagIdsAll [tagId]]) (Just (PostOrder Descending PoPhotoCount)) 1
        mapM_ (liftIO . print) xs
   rollback conn

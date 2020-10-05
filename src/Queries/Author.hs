@@ -4,6 +4,7 @@ module Queries.Author where
 
 
 import Control.Monad.Trans.Except (runExceptT)
+import Data.Function ((&))
 import Data.Int (Int32)
 import Data.Text (Text)
 
@@ -87,7 +88,10 @@ getAuthor gAuthorId = do
                        (all_ (dbAuthor newsDb))
   pure (fmap authorToReturned mAuthor)
 
-getAllAuthors :: Pg [ReturnedAuthor]
-getAllAuthors = do
-  authors <- runSelectReturningList $ select $ all_ (dbAuthor newsDb)
+getAllAuthors :: Integer -> Pg [ReturnedAuthor]
+getAllAuthors pageNum = do
+  authors <- runSelectReturningList $ select $
+               all_ (dbAuthor newsDb)
+               & offset_ (20 * (pageNum - 1))
+               & limit_ 20
   pure (fmap authorToReturned authors)

@@ -132,9 +132,14 @@ categoryTupleToReturned (ids, names) =
           , rCategoryName = name
           }
 
-getAllCategories :: Pg [ReturnedCategory]
-getAllCategories = do
-  rows <- runSelectReturningList $ selectWith $ groupedCategoryIdsNames
+getAllCategories :: Integer -> Pg [ReturnedCategory]
+getAllCategories pageNum = do
+  rows <- runSelectReturningList $ selectWith $ do
+            groupedCategoryIdsNamesQuery <- groupedCategoryIdsNames
+            pure $
+              groupedCategoryIdsNamesQuery
+              & offset_ (20 * (pageNum - 1))
+              & limit_ 20
   pure $ fmap categoryTupleToReturned rows
 
 withCategoryTree :: DbWith (DbQ s (DbQExpr s Int32, CategoryT (DbQExpr s)))

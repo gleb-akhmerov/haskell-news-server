@@ -2,6 +2,7 @@ module Queries.Commentary where
 
 
 import Control.Monad.Trans.Except (runExceptT)
+import Data.Function ((&))
 import Data.Int (Int32)
 import Data.Text (Text)
 
@@ -68,8 +69,8 @@ commentaryToReturned c =
     , rCommentaryContent = commentaryContent c
     }
 
-getPostCommentaries :: Int32 -> Pg (Maybe [ReturnedCommentary])
-getPostCommentaries gPostId = fmap rightToMaybe $ runExceptT $ do
+getPostCommentaries :: Int32 -> Integer -> Pg (Maybe [ReturnedCommentary])
+getPostCommentaries gPostId pageNum = fmap rightToMaybe $ runExceptT $ do
   makeSureEntityExists "Post" (dbPost newsDb) postId gPostId
   comments <- runSelectReturningList $ select $ do
                 post <- filter_ (\p -> postId p ==. val_ gPostId)
@@ -77,4 +78,6 @@ getPostCommentaries gPostId = fmap rightToMaybe $ runExceptT $ do
                 commentary <- join_ (dbCommentary newsDb)
                                     (\c -> commentaryPostId c ==. postId post)
                 pure commentary
+                & offset_ (20 * (pageNum - 1))
+                & limit_ 20
   pure (fmap commentaryToReturned comments)

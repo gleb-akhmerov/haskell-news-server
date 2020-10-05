@@ -2,6 +2,7 @@ module Queries.User where
 
 
 import Control.Monad.Trans.Except (runExceptT)
+import Data.Function ((&))
 import Data.Int (Int32)
 import Data.Text (Text)
 import Data.Time (LocalTime)
@@ -84,7 +85,10 @@ getUser gUserId = do
                        (all_ (dbUser newsDb))
   pure (fmap userToReturned mUser)
 
-getAllUsers :: Pg [ReturnedUser]
-getAllUsers = do
-  users <- runSelectReturningList $ select $ all_ (dbUser newsDb)
+getAllUsers :: Integer -> Pg [ReturnedUser]
+getAllUsers pageNum = do
+  users <- runSelectReturningList $ select $
+             all_ (dbUser newsDb)
+             & offset_ (20 * (pageNum - 1))
+             & limit_ 20
   pure (fmap userToReturned users)

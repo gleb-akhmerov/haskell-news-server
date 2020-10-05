@@ -224,13 +224,18 @@ getPost gPostId = do
                        postQuery
   pure (fmap postToReturning mPost)
 
-getPosts :: Set PostFilter -> Maybe PostOrder -> Pg [ReturnedPost]
-getPosts filters mOrder = do
+getPosts :: Set PostFilter -> Maybe PostOrder -> Integer -> Pg [ReturnedPost]
+getPosts filters mOrder pageNum = do
   let postsQuery =
         case mOrder of
           Nothing    -> filterPosts filters
           Just order -> filterAndSortPosts filters order
-  posts <- runSelectReturningList $ selectWith postsQuery
+  posts <- runSelectReturningList $ selectWith $ do
+    pq <- postsQuery
+    pure $
+      pq
+      & offset_ (20 * (pageNum - 1))
+      & limit_ 20
   pure (fmap postToReturning posts)
 
 isCommentByUser :: Int32 -> Int32 -> Pg Bool

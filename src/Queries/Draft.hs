@@ -6,6 +6,7 @@ module Queries.Draft where
 
 import Control.Monad (unless)
 import Control.Monad.Trans.Except (ExceptT, runExceptT, throwE)
+import Data.Function ((&))
 import Data.Int (Int32)
 import Data.Maybe (isJust)
 import Data.Text (Text)
@@ -238,9 +239,12 @@ getDraft gDraftId = do
                       (all_ (dbDraft newsDb))
   pure (fmap draftToReturned mDraft)
 
-getAllDrafts :: Pg [ReturnedDraft]
-getAllDrafts = do
-  drafts <- runSelectReturningList $ select $ all_ (dbDraft newsDb)
+getAllDrafts :: Integer -> Pg [ReturnedDraft]
+getAllDrafts pageNum = do
+  drafts <- runSelectReturningList $ select $
+              all_ (dbDraft newsDb)
+              & offset_ (20 * (pageNum - 1))
+              & limit_ 20
   pure (fmap draftToReturned drafts)
 
 
