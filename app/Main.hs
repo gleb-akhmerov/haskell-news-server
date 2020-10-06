@@ -13,6 +13,7 @@ import           Data.ByteString.Builder (byteString, stringUtf8)
 import           Data.Int (Int32)
 import           Data.Maybe (catMaybes, isJust, fromMaybe)
 import qualified Data.Set as Set (fromList)
+import           Data.String (fromString)
 import           Data.Text (Text)
 import           Data.Text.Encoding (decodeUtf8')
 import qualified Data.Text as T (unpack)
@@ -20,10 +21,10 @@ import           Text.Read (readMaybe)
 
 import Data.Aeson
 import Database.Beam.Postgres
+import Database.PostgreSQL.Simple (execute_, begin)
 import Network.HTTP.Types
 import Network.Wai
 import Network.Wai.Handler.Warp (run)
-import Network.Wai.Parse (parseRequestBody, lbsBackEnd, FileInfo(..))
 
 import Queries.Author
 import Queries.Category
@@ -44,9 +45,15 @@ matchRoute method path rMethod rPath =
      && length path == length rPath
      && all match (zip path rPath)
 
-responseJson :: ToJSON a => a -> Response
-responseJson = responseBuilder
+responseJsonOk :: ToJSON a => a -> Response
+responseJsonOk = responseBuilder
   status200
+  [(hContentType, "application/json")]
+  . fromEncoding . toEncoding
+
+responseJsonCreated :: ToJSON a => a -> Response
+responseJsonCreated = responseBuilder
+  status201
   [(hContentType, "application/json")]
   . fromEncoding . toEncoding
 
@@ -77,12 +84,7 @@ decodeUtf8Maybe = rightToMaybe . decodeUtf8'
 simpleQueryString :: Request -> SimpleQuery
 simpleQueryString = parseSimpleQuery . rawQueryString
 
-parseBody :: Request -> IO (Maybe LBS.ByteString)
-parseBody req = do
-  (_, files) <- parseRequestBody lbsBackEnd req
-  pure $ case files of
-           [(_,fileInfo)] -> Just (fileContent fileInfo)
-           _              -> Nothing
+-- ([("{\"first_name\": \"Jack\", \"last_name\": \"Black\", \"avatar_id\": 1}","")],[])
 
 hdlGetPhoto :: Text -> Pg Response
 hdlGetPhoto pIdText =
@@ -97,14 +99,10 @@ hdlGetPhoto pIdText =
     _ ->
       pure badRequest
 
-hdlPostPhoto :: Maybe LBS.ByteString -> Pg Response
-hdlPostPhoto mBody = do
-  case mBody of
-    Nothing ->
-      pure badRequest
-    Just body -> do
-      newId <- createPhoto (toStrict body)
-      pure $ responseJson (object ["id" .= newId])
+hdlPostPhoto :: LBS.ByteString -> Pg Response
+hdlPostPhoto body = do
+  newId <- createPhoto (toStrict body)
+  pure $ responseJsonCreated (object ["id" .= newId])
 
 hdlDeleteCommentary :: Text -> Text -> Pg Response
 hdlDeleteCommentary postIdText comIdText =
@@ -119,16 +117,16 @@ hdlDeleteCommentary postIdText comIdText =
     _ ->
       pure badRequest
 
-hdlPostCommentary :: Maybe ByteString -> Text -> Maybe LBS.ByteString -> Pg Response
-hdlPostCommentary mUIdText pIdText mBody = do
-  case (mUIdText >>= readMaybeBs, readMaybeText pIdText, mBody >>= decode) of
+hdlPostCommentary :: Maybe ByteString -> Text -> LBS.ByteString -> Pg Response
+hdlPostCommentary mUIdText pIdText body = do
+  case (mUIdText >>= readMaybeBs, readMaybeText pIdText, decode body) of
     (Just uId, Just pId, Just entity) -> do
       eitherRes <- createCommentary uId pId entity
       pure $ case eitherRes of
         Left err ->
           badRequestReason err
         Right newId ->
-          responseJson (object ["id" .= newId])
+          responseJsonCreated (object ["id" .= newId])
     _ ->
       pure badRequest
 
@@ -141,7 +139,7 @@ hdlPublishDraft dIdText =
         Left err ->
           badRequestReason err
         Right newId ->
-          responseJson (object ["id" .= newId])
+          responseJsonCreated (object ["id" .= newId])
     _ ->
       pure badRequest
 
@@ -182,18 +180,18 @@ hdlGetPostsFiltered query = do
       filters = Set.fromList (catMaybes (fmap maybeParseFilter query))
       pageNum = fromMaybe 1 (readMaybeBs =<< lookup "page" query)
   posts <- getPosts filters mPostOrder pageNum
-  pure $ responseJson posts
+  pure $ responseJsonOk posts
 
-hdlPostDraft :: Maybe ByteString -> Maybe LBS.ByteString -> Pg Response
-hdlPostDraft mAuthorIdText mBody = do
-  case (mAuthorIdText >>= readMaybeBs, mBody >>= decode) of
+hdlPostDraft :: Maybe ByteString -> LBS.ByteString -> Pg Response
+hdlPostDraft mAuthorIdText body = do
+  case (mAuthorIdText >>= readMaybeBs, decode body) of
     (Just authorId, Just entity) -> do
       eitherRes <- createDraft authorId entity
       pure $ case eitherRes of
         Left err ->
           badRequestReason err
         Right newId ->
-          responseJson (object ["id" .= newId])
+          responseJsonCreated (object ["id" .= newId])
     _ ->
       pure badRequest
 
@@ -205,7 +203,7 @@ hdlGetPostCommentaries query postIdText = do
       pure badRequest
     Just postId -> do
       entities <- getPostCommentaries postId pageNum
-      pure $ responseJson entities
+      pure $ responseJsonOk entities
 
 hdlGetEntity :: ToJSON a => (Int32 -> Pg (Maybe a)) -> Text -> Pg Response
 hdlGetEntity getEntity eIdText =
@@ -218,17 +216,17 @@ hdlGetEntity getEntity eIdText =
         Nothing ->
           notFound
         Just entity ->
-          responseJson entity
+          responseJsonOk entity
 
 hdlGetAllEntities :: ToJSON a => SimpleQuery -> (Integer -> Pg [a]) -> Pg Response
 hdlGetAllEntities query getAllEntities = do
   let pageNum = fromMaybe 1 (readMaybeBs =<< lookup "page" query)
   entities <- getAllEntities pageNum
-  pure $ responseJson entities
+  pure $ responseJsonOk entities
 
-hdlPostEntityEither :: FromJSON a => (a -> Pg (Either String Int32)) -> Maybe LBS.ByteString -> Pg Response
-hdlPostEntityEither postEntity mBody = do
-  case mBody >>= decode of
+hdlPostEntityEither :: FromJSON a => (a -> Pg (Either String Int32)) -> LBS.ByteString -> Pg Response
+hdlPostEntityEither postEntity body = do
+  case decode body of
     Nothing ->
       pure badRequest
     Just entity -> do
@@ -237,16 +235,16 @@ hdlPostEntityEither postEntity mBody = do
         Left err ->
           badRequestReason err
         Right newId ->
-          responseJson (object ["id" .= newId])
+          responseJsonCreated (object ["id" .= newId])
 
-hdlPostEntity :: FromJSON a => (a -> Pg Int32) -> Maybe LBS.ByteString -> Pg Response
-hdlPostEntity postEntity mBody = do
-  case mBody >>= decode of
+hdlPostEntity :: FromJSON a => (a -> Pg Int32) -> LBS.ByteString -> Pg Response
+hdlPostEntity postEntity body = do
+  case decode body of
     Nothing ->
       pure badRequest
     Just entity -> do
       newId <- postEntity entity
-      pure $ responseJson (object ["id" .= newId])
+      pure $ responseJsonCreated (object ["id" .= newId])
 
 hdlDeleteEntity :: (Int32 -> Pg (Either String ())) -> Text -> Pg Response
 hdlDeleteEntity deleteEntity eIdText =
@@ -261,16 +259,16 @@ hdlDeleteEntity deleteEntity eIdText =
         Right () ->
           responseBuilder status200 [] ""
 
-hdlPutEntity :: FromJSON a => (Int32 -> a -> Pg (Either String ())) -> Text -> Maybe LBS.ByteString -> Pg Response
-hdlPutEntity updateEntity eIdText mBody = do
-  case (readMaybeText eIdText, mBody >>= decode) of
+hdlPutEntity :: FromJSON a => (Int32 -> a -> Pg (Either String ())) -> Text -> LBS.ByteString -> Pg Response
+hdlPutEntity updateEntity eIdText body = do
+  case (readMaybeText eIdText, decode body) of
     (Just eId, Just entityUpd) -> do
       eitherRes <- updateEntity eId entityUpd
       pure $ case eitherRes of
         Left err ->
           badRequestReason err
-        Right newId ->
-          responseJson (object ["id" .= newId])
+        Right () ->
+          responseBuilder status200 [] ""
     _ ->
       pure badRequest
 
@@ -282,7 +280,7 @@ data Auth
 
 withAuth :: Auth -> SimpleQuery -> Pg Response -> Pg Response
 withAuth auth query resp = do
-  let mUserId = readMaybeBs =<< lookup "user_id" query
+  let mUserId = readMaybeBs =<< lookup "user" query
   case mUserId of
     Nothing ->
       pure forbidden
@@ -302,7 +300,7 @@ withAuth auth query resp = do
 
 withDraftAuth :: Text -> SimpleQuery -> Pg Response -> Pg Response
 withDraftAuth draftIdText query resp =
-  case (readMaybeText draftIdText, readMaybeBs =<< lookup "user_id" query) of
+  case (readMaybeText draftIdText, readMaybeBs =<< lookup "user" query) of
     (Just draftId, Just authorId) -> do
       b <- isDraftByAuthor draftId authorId
       if b
@@ -313,7 +311,7 @@ withDraftAuth draftIdText query resp =
 
 withCommentAuth :: Text -> SimpleQuery -> Pg Response -> Pg Response
 withCommentAuth commentIdText query resp =
-  case (readMaybeText commentIdText, readMaybeBs =<< lookup "user_id" query) of
+  case (readMaybeText commentIdText, readMaybeBs =<< lookup "user" query) of
     (Just commentId, Just userId) -> do
       b <- isCommentByUser commentId userId
       if b
@@ -326,48 +324,62 @@ main :: IO ()
 main = do
   conn <- connectPostgreSQL "host='localhost' port='5432' dbname='haskell-news-server' user='postgres'"
   let runPg = runBeamPostgres conn
+  begin conn
+  migration1 <- fromString <$> readFile "migrations/1.sql"
+  migration2 <- fromString <$> readFile "migrations/2.sql"
+  print =<< execute_ conn migration1
+  print =<< execute_ conn migration2
+  runPg $ do
+    photoId <- createPhoto ""
+    _ <- createAdminUser CreateUser
+           { cUserFirstName = "John"
+           , cUserLastName = "Doe"
+           , cUserAvatarId = photoId
+           }
+    pure ()
   run 3000 $ \req send -> do
     let method = requestMethod req
         path = pathInfo req
         query = simpleQueryString req
-    mBody <- parseBody req
+    body <- strictRequestBody req
+    putStrLn $ BS.unpack method ++ " " ++ show path ++ " " ++ show query ++ " " ++ show body
     response <- runPg $
       case (method, path) of
         ("GET",    ["users"])           -> withAuth AUser  query $ hdlGetAllEntities query getAllUsers
         ("GET",    ["users", id_])      -> withAuth AUser  query $ hdlGetEntity getUser id_
-        ("POST",   ["users"])           -> withAuth AUser  query $ hdlPostEntityEither createUser mBody
+        ("POST",   ["users"])           -> withAuth AUser  query $ hdlPostEntityEither createUser body
         ("DELETE", ["users", id_])      -> withAuth AAdmin query $ hdlDeleteEntity deleteUser id_
 
         ("GET",    ["authors"])         -> withAuth AAdmin query $ hdlGetAllEntities query getAllAuthors
         ("GET",    ["authors", id_])    -> withAuth AAdmin query $ hdlGetEntity getAuthor id_
-        ("POST",   ["authors"])         -> withAuth AAdmin query $ hdlPostEntityEither createAuthor mBody
-        ("PUT",    ["authors", id_])    -> withAuth AAdmin query $ hdlPutEntity updateAuthor id_ mBody
+        ("POST",   ["authors"])         -> withAuth AAdmin query $ hdlPostEntityEither createAuthor body
+        ("PUT",    ["authors", id_])    -> withAuth AAdmin query $ hdlPutEntity updateAuthor id_ body
         ("DELETE", ["authors", id_])    -> withAuth AAdmin query $ hdlDeleteEntity deleteAuthor id_
         
         ("GET",    ["tags"])            -> withAuth AUser  query $ hdlGetAllEntities query getAllTags
         ("GET",    ["tags", id_])       -> withAuth AUser  query $ hdlGetEntity getTag id_
-        ("POST",   ["tags"])            -> withAuth AAdmin query $ hdlPostEntity createTag mBody
-        ("PUT",    ["tags", id_])       -> withAuth AAdmin query $ hdlPutEntity updateTag id_ mBody
+        ("POST",   ["tags"])            -> withAuth AAdmin query $ hdlPostEntity createTag body
+        ("PUT",    ["tags", id_])       -> withAuth AAdmin query $ hdlPutEntity updateTag id_ body
         ("DELETE", ["tags", id_])       -> withAuth AAdmin query $ hdlDeleteEntity deleteTag id_
 
         ("GET",    ["categories"])      -> withAuth AUser  query $ hdlGetAllEntities query getAllCategories
         ("GET",    ["categories", id_]) -> withAuth AUser  query $ hdlGetEntity getCategory id_
-        ("POST",   ["categories"])      -> withAuth AAdmin query $ hdlPostEntityEither createCategory mBody
-        ("PUT",    ["categories", id_]) -> withAuth AAdmin query $ hdlPutEntity updateCategory id_ mBody
+        ("POST",   ["categories"])      -> withAuth AAdmin query $ hdlPostEntityEither createCategory body
+        ("PUT",    ["categories", id_]) -> withAuth AAdmin query $ hdlPutEntity updateCategory id_ body
         ("DELETE", ["categories", id_]) -> withAuth AAdmin query $ hdlDeleteEntity deleteCategory id_
 
         ("GET",    ["drafts"])          -> withAuth AAuthor query $ hdlGetAllEntities query getAllDrafts
         ("GET",    ["drafts", id_])     -> withDraftAuth id_ query $ hdlGetEntity getDraft id_
-        ("POST",   ["drafts"])          -> withAuth AAuthor query $ hdlPostDraft (lookup "user_id" query) mBody
+        ("POST",   ["drafts"])          -> withAuth AAuthor query $ hdlPostDraft (lookup "user" query) body
         ("POST",   ["drafts", id_, "publish"]) -> withDraftAuth id_ query $ hdlPublishDraft id_
-        ("PUT",    ["drafts", id_])     -> withDraftAuth id_ query $ hdlPutEntity updateDraft id_ mBody
+        ("PUT",    ["drafts", id_])     -> withDraftAuth id_ query $ hdlPutEntity updateDraft id_ body
         ("DELETE", ["drafts", id_])     -> withDraftAuth id_ query $ hdlDeleteEntity deleteDraft id_
 
         ("GET",    ["photos", id_])     -> withAuth AUser query $ hdlGetPhoto id_
-        ("POST",   ["photos"])          -> withAuth AUser query $ hdlPostPhoto mBody
+        ("POST",   ["photos"])          -> withAuth AUser query $ hdlPostPhoto body
 
         ("GET",    ["posts", id_, "comments"])      -> withAuth AUser query $ hdlGetPostCommentaries query id_
-        ("POST",   ["posts", id_, "comments"])      -> withAuth AUser query $ hdlPostCommentary (lookup "user_id" query) id_ mBody
+        ("POST",   ["posts", id_, "comments"])      -> withAuth AUser query $ hdlPostCommentary (lookup "user" query) id_ body
         ("DELETE", ["posts", pId, "comments", cId]) -> withCommentAuth cId query $ hdlDeleteCommentary pId cId
         
         ("GET",    ["posts"])           -> withAuth AUser query $ hdlGetPostsFiltered query

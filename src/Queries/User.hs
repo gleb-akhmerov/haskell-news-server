@@ -20,7 +20,6 @@ data CreateUser = CreateUser
   { cUserFirstName :: Text
   , cUserLastName :: Text
   , cUserAvatarId :: Int32
-  , cUserIsAdmin :: Bool
   }
   deriving (Generic, Show)
 
@@ -38,7 +37,23 @@ createUser cu = runExceptT $ do
              , userLastName  = val_ (cUserLastName cu)
              , userAvatarId  = val_ (cUserAvatarId cu)
              , userCreatedAt = now_
-             , userIsAdmin   = val_ (cUserIsAdmin cu)
+             , userIsAdmin   = val_ False
+             }
+      ]
+  pure (userId user)
+
+
+createAdminUser :: CreateUser -> Pg (Either String Int32)
+createAdminUser cu = runExceptT $ do
+  makeSureEntityExists "Photo" (dbPhoto newsDb) photoId (cUserAvatarId cu)
+  [user] <- runInsertReturningList $ insert (dbUser newsDb) $
+    insertExpressions
+      [ User { userId        = default_
+             , userFirstName = val_ (cUserFirstName cu)
+             , userLastName  = val_ (cUserLastName cu)
+             , userAvatarId  = val_ (cUserAvatarId cu)
+             , userCreatedAt = now_
+             , userIsAdmin   = val_ True
              }
       ]
   pure (userId user)

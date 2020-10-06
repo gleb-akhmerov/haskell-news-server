@@ -129,7 +129,6 @@ publishDraft dId = runExceptT $ do
 
 data UpdateDraft = UpdateDraft
   { uDraftNewShortName :: Maybe Text
-  , uDraftNewAuthorId :: Maybe Int32
   , uDraftNewCategoryId :: Maybe Int32
   , uDraftNewTextContent :: Maybe Text
   , uDraftNewMainPhotoId :: Maybe Int32
@@ -146,7 +145,6 @@ instance FromJSON UpdateDraft where
 updateDraft :: Int32 -> UpdateDraft -> Pg (Either String ())
 updateDraft uDraftId ud = runExceptT $ do
   makeSureEntityExists "Draft" (dbDraft newsDb) draftId uDraftId
-  maybeDo (makeSureEntityExists "Author" (dbAuthor newsDb) authorId) (uDraftNewAuthorId ud)
   maybeDo (makeSureEntityExists "Category" (dbCategory newsDb) categoryId) (uDraftNewCategoryId ud)
   maybeDo makeSureTagsExist (uDraftNewTagIds ud)
   maybeDo (makeSureEntityExists "Photo" (dbPhoto newsDb) photoId) (uDraftNewMainPhotoId ud)
@@ -155,7 +153,6 @@ updateDraft uDraftId ud = runExceptT $ do
   runUpdate $ update (dbDraft newsDb)
                      (\d ->
                           maybeAssignment (uDraftNewShortName   ud) (\x -> draftShortName   d <-. val_ x)
-                       <> maybeAssignment (uDraftNewAuthorId    ud) (\x -> draftAuthorId    d <-. val_ x)
                        <> maybeAssignment (uDraftNewCategoryId  ud) (\x -> draftCategoryId  d <-. val_ x)
                        <> maybeAssignment (uDraftNewTextContent ud) (\x -> draftTextContent d <-. val_ x)
                        <> maybeAssignment (uDraftNewMainPhotoId ud) (\x -> draftMainPhotoId d <-. val_ x))

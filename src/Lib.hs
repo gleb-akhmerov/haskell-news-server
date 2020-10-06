@@ -51,7 +51,6 @@ someFunc = do
                 { cUserFirstName = "John"
                 , cUserLastName = "Doe"
                 , cUserAvatarId = 1
-                , cUserIsAdmin = False
                 }
     Right authorId <- createAuthor CreateAuthor
                         { cAuthorUserId = userId
