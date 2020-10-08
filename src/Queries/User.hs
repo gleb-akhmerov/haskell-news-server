@@ -104,6 +104,7 @@ getAllUsers :: Integer -> Pg [ReturnedUser]
 getAllUsers pageNum = do
   users <- runSelectReturningList $ select $
              all_ (dbUser newsDb)
+             & orderBy_ (asc_ . userId)
              & offset_ (20 * (pageNum - 1))
              & limit_ 20
   pure (fmap userToReturned users)

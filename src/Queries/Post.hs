@@ -7,7 +7,7 @@ module Queries.Post where
 
 import Data.Function ((&))
 import Data.Int (Int32)
-import Data.Maybe (isJust)
+import Data.Maybe (isJust, fromMaybe)
 import Data.Set (Set)
 import Data.Text (Text)
 import Data.Time (LocalTime)
@@ -226,12 +226,9 @@ getPost gPostId = do
 
 getPosts :: Set PostFilter -> Maybe PostOrder -> Integer -> Pg [ReturnedPost]
 getPosts filters mOrder pageNum = do
-  let postsQuery =
-        case mOrder of
-          Nothing    -> filterPosts filters
-          Just order -> filterAndSortPosts filters order
+  let order = fromMaybe (PostOrder Ascending PoPublishedAt) mOrder
   posts <- runSelectReturningList $ selectWith $ do
-    pq <- postsQuery
+    pq <- filterAndSortPosts filters order
     pure $
       pq
       & offset_ (20 * (pageNum - 1))

@@ -240,6 +240,7 @@ getAllDrafts :: Integer -> Pg [ReturnedDraft]
 getAllDrafts pageNum = do
   drafts <- runSelectReturningList $ select $
               all_ (dbDraft newsDb)
+              & orderBy_ (asc_ . draftId)
               & offset_ (20 * (pageNum - 1))
               & limit_ 20
   pure (fmap draftToReturned drafts)

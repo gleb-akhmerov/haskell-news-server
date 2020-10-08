@@ -92,6 +92,7 @@ getAllAuthors :: Integer -> Pg [ReturnedAuthor]
 getAllAuthors pageNum = do
   authors <- runSelectReturningList $ select $
                all_ (dbAuthor newsDb)
+               & orderBy_ (asc_ . authorId)
                & offset_ (20 * (pageNum - 1))
                & limit_ 20
   pure (fmap authorToReturned authors)

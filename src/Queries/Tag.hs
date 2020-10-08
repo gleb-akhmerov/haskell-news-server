@@ -97,6 +97,7 @@ getAllTags :: Integer -> Pg [ReturnedTag]
 getAllTags pageNum = do
   tags <- runSelectReturningList $ select $
             all_ (dbTag newsDb)
+            & orderBy_ (asc_ . tagId)
             & offset_ (20 * (pageNum - 1))
             & limit_ 20
   pure (fmap tagToReturned tags)

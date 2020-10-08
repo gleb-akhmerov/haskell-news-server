@@ -78,6 +78,7 @@ getPostCommentaries gPostId pageNum = fmap rightToMaybe $ runExceptT $ do
                 commentary <- join_ (dbCommentary newsDb)
                                     (\c -> commentaryPostId c ==. postId post)
                 pure commentary
+                & orderBy_ (asc_ . commentaryId)
                 & offset_ (20 * (pageNum - 1))
                 & limit_ 20
   pure (fmap commentaryToReturned comments)
