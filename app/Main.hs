@@ -3,7 +3,7 @@
 module Main where
 
 
-import           Control.Applicative (liftA2)
+import           Control.Monad.IO.Class (liftIO)
 import           Data.Bits (xor)
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString.Char8 as BS (unpack)
@@ -176,7 +176,7 @@ hdlGetPostsFiltered :: SimpleQuery -> Pg Response
 hdlGetPostsFiltered query = do
   let mOrder   = lookup "order"    query >>= maybeParseOrder
       mOrderBy = lookup "order_by" query >>= maybeParseOrderBy
-      mPostOrder = liftA2 PostOrder mOrder mOrderBy
+      mPostOrder = PostOrder <$> mOrder <*> mOrderBy
       filters = Set.fromList (catMaybes (fmap maybeParseFilter query))
       pageNum = fromMaybe 1 (readMaybeBs =<< lookup "page" query)
   posts <- getPosts filters mPostOrder pageNum
@@ -323,19 +323,36 @@ withCommentAuth commentIdText query resp =
 main :: IO ()
 main = do
   conn <- connectPostgreSQL "host='localhost' port='5432' dbname='haskell-news-server' user='postgres'"
-  let runPg = runBeamPostgres conn
   begin conn
   migration1 <- fromString <$> readFile "migrations/1.sql"
   migration2 <- fromString <$> readFile "migrations/2.sql"
   print =<< execute_ conn migration1
   print =<< execute_ conn migration2
-  runPg $ do
+  runBeamPostgres conn $ do
     photoId <- createPhoto ""
-    _ <- createAdminUser CreateUser
-           { cUserFirstName = "John"
-           , cUserLastName = "Doe"
-           , cUserAvatarId = photoId
-           }
+    Right userId <- createAdminUser CreateUser
+      { cUserFirstName = "John"
+      , cUserLastName = "Doe"
+      , cUserAvatarId = photoId
+      }
+    Right authorId <- createAuthor CreateAuthor
+      { cAuthorUserId = userId
+      , cAuthorShortDescription = ""
+      }
+    Right categoryId <- createCategory CreateCategory
+      { cCategoryParentId = Nothing
+      , cCategoryName = "Haskell"
+      }
+    Right draftId <- createDraft authorId CreateDraft
+      { cDraftShortName = ""
+      , cDraftCategoryId = categoryId
+      , cDraftTextContent = ""
+      , cDraftMainPhotoId = photoId
+      , cDraftAdditionalPhotoIds = []
+      , cDraftTagIds = []
+      }
+    _ <- publishDraft draftId
+    liftIO $ print draftId
     pure ()
   run 3000 $ \req send -> do
     let method = requestMethod req
@@ -343,7 +360,7 @@ main = do
         query = simpleQueryString req
     body <- strictRequestBody req
     putStrLn $ BS.unpack method ++ " " ++ show path ++ " " ++ show query ++ " " ++ show body
-    response <- runPg $
+    response <- runBeamPostgresDebug putStrLn conn $
       case (method, path) of
         ("GET",    ["users"])           -> withAuth AUser  query $ hdlGetAllEntities query getAllUsers
         ("GET",    ["users", id_])      -> withAuth AUser  query $ hdlGetEntity getUser id_

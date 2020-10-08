@@ -41,7 +41,7 @@ someFunc = do
     do xs <- runSelectReturningList $ selectWith withCategoryTree
        mapM_ (liftIO . print) xs
 
-    do xs <- runSelectReturningList $ selectWith postsWithCategories
+    do xs <- runSelectReturningList $ select postsWithNestedEntities
        mapM_ (liftIO . print) xs
 
     runInsert $ insert (dbPhoto newsDb) $
