@@ -3,9 +3,11 @@
 module Queries.Author where
 
 
-import Control.Monad.Trans.Except (runExceptT)
+import Control.Monad (when)
+import Control.Monad.Trans.Except (runExceptT, throwE)
 import Data.Function ((&))
 import Data.Int (Int32)
+import Data.Maybe (isJust)
 import Data.Text (Text)
 
 import Data.Aeson
@@ -30,6 +32,10 @@ instance FromJSON CreateAuthor where
 createAuthor :: CreateAuthor -> Pg (Either String Int32)
 createAuthor ca = runExceptT $ do
   makeSureEntityExists "User" (dbUser newsDb) userId (cAuthorUserId ca)
+  mEntity <- runSelectReturningOne $ select $
+    join_ (dbAuthor newsDb) (\a -> authorId a ==. val_ (cAuthorUserId ca))
+  when (isJust mEntity) $
+    throwE $ "User with id is already an author: " ++ show (cAuthorUserId ca)
   [author] <- runInsertReturningList $ insert (dbAuthor newsDb) $
     insertExpressions
       [ Author { authorId               = val_ (cAuthorUserId ca)
