@@ -19,14 +19,19 @@ import Queries.Tag
 import Queries.User
 
 
-someFunc :: IO ()
-someFunc = do
+applyMigrations :: Connection -> IO ()
+applyMigrations conn = do
   migration1 <- fromString <$> readFile "migrations/1.sql"
   migration2 <- fromString <$> readFile "migrations/2.sql"
+  _ <- execute_ conn migration1
+  _ <- execute_ conn migration2
+  return ()
+
+someFunc :: IO ()
+someFunc = do
   conn <- connectPostgreSQL "host='localhost' port='5432' dbname='haskell-news-server' user='postgres'"
   begin conn
-  print =<< execute_ conn migration1
-  print =<< execute_ conn migration2
+  applyMigrations conn
   runBeamPostgresDebug putStrLn conn $ do
     runInsert $ insert (dbCategory newsDb) $
       insertValues

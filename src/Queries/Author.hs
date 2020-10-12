@@ -74,7 +74,7 @@ data ReturnedAuthor = ReturnedAuthor
   { rAuthorId :: Int32
   , rAuthorShortDescription :: Text
   }
-  deriving (Generic, Show)
+  deriving (Generic, Show, Eq)
 
 instance ToJSON ReturnedAuthor where
   toJSON = genericToJSON defaultOptions

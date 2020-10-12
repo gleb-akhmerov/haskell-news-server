@@ -76,7 +76,7 @@ data ReturnedUser = ReturnedUser
   , rUserCreatedAt :: LocalTime
   , rUserIsAdmin   :: Bool
   }
-  deriving (Generic, Show)
+  deriving (Generic, Show, Eq)
 
 instance ToJSON ReturnedUser where
   toJSON = genericToJSON defaultOptions
