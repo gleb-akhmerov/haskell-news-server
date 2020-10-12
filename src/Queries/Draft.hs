@@ -236,10 +236,11 @@ getDraft gDraftId = do
                       (all_ (dbDraft newsDb))
   pure (fmap draftToReturned mDraft)
 
-getAllDrafts :: Integer -> Pg [ReturnedDraft]
-getAllDrafts pageNum = do
+getAllDrafts :: Int32 -> Integer -> Pg [ReturnedDraft]
+getAllDrafts gAuthorId pageNum = do
   drafts <- runSelectReturningList $ select $
-              all_ (dbDraft newsDb)
+              filter_ (\d -> draftAuthorId d ==. val_ gAuthorId)
+                      (all_ (dbDraft newsDb))
               & orderBy_ (asc_ . draftId)
               & offset_ (20 * (pageNum - 1))
               & limit_ 20

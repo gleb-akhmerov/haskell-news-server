@@ -195,6 +195,16 @@ hdlPostDraft mAuthorIdText body = do
     _ ->
       pure badRequest
 
+hdlGetAllDrafts :: SimpleQuery -> Pg Response
+hdlGetAllDrafts query = do
+  let pageNum = fromMaybe 1 (readMaybeBs =<< lookup "page" query)
+  case readMaybeBs =<< lookup "user" query of
+    Nothing ->
+      pure badRequest
+    Just authorId -> do
+      entities <- getAllDrafts authorId pageNum
+      pure $ responseJsonOk entities
+
 hdlGetPostCommentaries :: SimpleQuery -> Text -> Pg Response
 hdlGetPostCommentaries query postIdText = do
   let pageNum = fromMaybe 1 (readMaybeBs =<< lookup "page" query)
@@ -385,7 +395,7 @@ main = do
         ("PUT",    ["categories", id_]) -> withAuth AAdmin query $ hdlPutEntity updateCategory id_ body
         ("DELETE", ["categories", id_]) -> withAuth AAdmin query $ hdlDeleteEntity deleteCategory id_
 
-        ("GET",    ["drafts"])          -> withAuth AAuthor query $ hdlGetAllEntities query getAllDrafts
+        ("GET",    ["drafts"])          -> withAuth AAuthor query $ hdlGetAllDrafts query
         ("GET",    ["drafts", id_])     -> withDraftAuth id_ query $ hdlGetEntity getDraft id_
         ("POST",   ["drafts"])          -> withAuth AAuthor query $ hdlPostDraft (lookup "user" query) body
         ("POST",   ["drafts", id_, "publish"]) -> withDraftAuth id_ query $ hdlPublishDraft id_
