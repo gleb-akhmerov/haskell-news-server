@@ -73,7 +73,7 @@ data ReturnedTag = ReturnedTag
   { rTagId :: Int32
   , rTagName :: Text
   }
-  deriving (Generic, Show)
+  deriving (Generic, Show, Eq)
 
 instance ToJSON ReturnedTag where
   toJSON = genericToJSON defaultOptions

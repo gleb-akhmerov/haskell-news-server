@@ -147,7 +147,7 @@ data ReturnedPostAuthor = ReturnedPostAuthor
   , rPostAuthorIsAdmin          :: Bool
   , rPostAuthorShortDescription :: Text
   }
-  deriving (Generic, Show)
+  deriving (Generic, Show, Eq)
 
 instance ToJSON ReturnedPostAuthor where
   toJSON = genericToJSON defaultOptions
@@ -164,7 +164,7 @@ data ReturnedPost = ReturnedPost
   , rPostMainPhotoId        :: Int32
   , rPostAdditionalPhotoIds :: [Int32]
   }
-  deriving (Generic, Show)
+  deriving (Generic, Show, Eq)
 
 instance ToJSON ReturnedPost where
   toJSON = genericToJSON defaultOptions

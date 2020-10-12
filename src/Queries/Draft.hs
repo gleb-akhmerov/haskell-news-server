@@ -211,7 +211,7 @@ data ReturnedDraft = ReturnedDraft
   , rDraftTextContent :: Text
   , rDraftMainPhotoId :: Int32
   }
-  deriving (Generic, Show)
+  deriving (Generic, Show, Eq)
 
 instance ToJSON ReturnedDraft where
   toJSON = genericToJSON defaultOptions

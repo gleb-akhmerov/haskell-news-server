@@ -54,7 +54,7 @@ data ReturnedCommentary = ReturnedCommentary
   , rCommentaryPostId :: Int32
   , rCommentaryContent :: Text
   }
-  deriving (Generic, Show)
+  deriving (Generic, Show, Eq)
 
 instance ToJSON ReturnedCommentary where
   toJSON = genericToJSON defaultOptions

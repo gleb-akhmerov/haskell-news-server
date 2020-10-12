@@ -93,7 +93,7 @@ data ReturnedCategory = ReturnedCategory
   , rCategoryParent :: Maybe ReturnedCategory
   , rCategoryName :: Text
   }
-  deriving (Generic, Show)
+  deriving (Generic, Show, Eq)
 
 instance ToJSON ReturnedCategory where
   toJSON = genericToJSON defaultOptions
