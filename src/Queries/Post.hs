@@ -90,9 +90,9 @@ filterPosts filters =
           PfTagId tId ->
             val_ (Vector.fromList [tId]) `isSubsetOf_` tagIds
           PfTagIdsIn tIds ->
-            val_ (Vector.fromList tIds) `isSubsetOf_` tagIds
+            tagIds `isSubsetOf_` val_ (Vector.fromList tIds) &&. arrayLen tagIds >. val_ 0
           PfTagIdsAll tIds ->
-            val_ (Vector.fromList tIds) `isSupersetOf_` tagIds
+            tagIds `isSupersetOf_` val_ (Vector.fromList tIds)
           PfPostNameSubstring substring ->
             postShortName post `like_` val_ ("%" <> substring <> "%")
           PfPostContentSubstring substring ->
