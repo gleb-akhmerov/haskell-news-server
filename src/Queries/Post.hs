@@ -224,8 +224,9 @@ getPosts filters mOrder pageNum = do
     filterAndSortPosts filters order
     & offset_ (20 * (pageNum - 1))
     & limit_ 20
-  categories <- getMultipleCategories (fmap (\(_, _, _, c, _, _) -> categoryId c) posts)
-  pure (zipWith postToReturning categories posts)
+  let catIds = (fmap (\(_, _, _, c, _, _) -> categoryId c) posts)
+  categories <- mapM getCategory catIds
+  pure (zipWith postToReturning (fmap fromJust categories) posts)
 
 isCommentByUser :: Int32 -> Int32 -> Pg Bool
 isCommentByUser gCommentId gUserId = do

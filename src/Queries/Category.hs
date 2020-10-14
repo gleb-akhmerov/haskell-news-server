@@ -142,12 +142,6 @@ getAllCategories pageNum = do
               & limit_ 20
   pure $ fmap categoryTupleToReturned rows
 
-getMultipleCategories :: [Int32] -> Pg [ReturnedCategory]
-getMultipleCategories catIntegerIds = do
-  rows <- runSelectReturningList $ selectWith $
-    groupedMultipleCategoriesIdsNames catIntegerIds
-  pure $ fmap categoryTupleToReturned rows
-
 withCategoryTree :: DbWith (DbQ s (DbQExpr s Int32, CategoryT (DbQExpr s)))
 withCategoryTree = do
   rec catTree <- selecting $
@@ -169,21 +163,6 @@ groupedCategoryIdsNames = do
   catTreeQuery <- withCategoryTree
   pure $
     do cat <- all_ (dbCategory newsDb)
-       (start, cTree) <- catTreeQuery
-       guard_ (start ==. categoryId cat)
-       pure (cat, cTree)
-    & aggregate_ (\(cat, cTree) ->
-                    ( group_ cat
-                    , pgArrayAgg (categoryId cTree)
-                    , pgArrayAgg (categoryName cTree)))
-    & fmap (\(_, ids, names) -> (ids, names))
-
-groupedMultipleCategoriesIdsNames :: [Int32] -> DbWith (DbQ s (DbQExpr s (Vector Int32), DbQExpr s (Vector Text)))
-groupedMultipleCategoriesIdsNames catIntegerIds = do
-  catTreeQuery <- withCategoryTree
-  pure $
-    do cat <- filter_ (\c -> categoryId c `in_` fmap val_ catIntegerIds)
-                      (all_ (dbCategory newsDb))
        (start, cTree) <- catTreeQuery
        guard_ (start ==. categoryId cat)
        pure (cat, cTree)
