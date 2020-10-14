@@ -50,8 +50,8 @@ postsWithNestedEntities = do
                   , group_ user
                   , group_ author
                   , group_ category
-                  , (removeNullsAgg (pgArrayAgg (tagId tag)), removeNullsAgg (pgArrayAgg (tagName tag)))
-                  , removeNullsAgg (pgArrayAgg (postAdditionalPhotoPhotoId postAdditionalPhoto))))
+                  , (removeNullsAgg (pgArrayAggOver distinctInGroup_ (tagId tag)), removeNullsAgg (pgArrayAggOver distinctInGroup_ (tagName tag)))
+                  , removeNullsAgg (pgArrayAggOver distinctInGroup_ (postAdditionalPhotoPhotoId postAdditionalPhoto))))
 
 
 data PostFilter
