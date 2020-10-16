@@ -26,15 +26,15 @@ import Network.HTTP.Types
 import Network.Wai
 import Network.Wai.Handler.Warp (run)
 
-import Queries.Author
-import Queries.Category
-import Queries.Commentary
-import Queries.Draft
-import Queries.Photo
-import Queries.Post
-import Queries.Tag
-import Queries.User
-import Queries.Util
+import NewsServer.Database.Author
+import NewsServer.Database.Category
+import NewsServer.Database.Commentary
+import NewsServer.Database.Draft
+import NewsServer.Database.Photo
+import NewsServer.Database.Post
+import NewsServer.Database.Tag
+import NewsServer.Database.User
+import NewsServer.Database.Util
 
 
 matchRoute :: ByteString -> [Text] -> ByteString -> [Text] -> Bool

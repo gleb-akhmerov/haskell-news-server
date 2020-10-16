@@ -1,4 +1,4 @@
-module MaybeOrUnspecified where
+module NewsServer.MaybeOrUnspecified where
 
 
 data MaybeOrUnspecified a

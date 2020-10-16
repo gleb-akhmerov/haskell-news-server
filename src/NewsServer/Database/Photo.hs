@@ -1,4 +1,4 @@
-module Queries.Photo where
+module NewsServer.Database.Photo where
 
 
 import Data.ByteString (ByteString)
@@ -8,7 +8,7 @@ import Database.Beam
 import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
 
-import BeamSchema
+import NewsServer.Database.BeamSchema
 
 
 createPhoto :: ByteString -> Pg Int32

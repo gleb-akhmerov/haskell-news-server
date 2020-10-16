@@ -1,4 +1,4 @@
-module Queries.Commentary where
+module NewsServer.Database.Commentary where
 
 
 import Control.Monad.Trans.Except (runExceptT)
@@ -11,8 +11,8 @@ import Database.Beam
 import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
 
-import BeamSchema
-import Queries.Util
+import NewsServer.Database.BeamSchema
+import NewsServer.Database.Util
 
 
 data CreateCommentary = CreateCommentary

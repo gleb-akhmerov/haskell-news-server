@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Lib where
+module NewsServer.Lib where
 
 
 import qualified Data.Set as Set (fromList)
@@ -10,13 +10,13 @@ import Database.PostgreSQL.Simple (execute_, begin, rollback)
 import Database.Beam hiding (date)
 import Database.Beam.Postgres
 
-import BeamSchema
-import Queries.Author
-import Queries.Category
-import Queries.Draft
-import Queries.Post
-import Queries.Tag
-import Queries.User
+import NewsServer.Database.BeamSchema
+import NewsServer.Database.Author
+import NewsServer.Database.Category
+import NewsServer.Database.Draft
+import NewsServer.Database.Post
+import NewsServer.Database.Tag
+import NewsServer.Database.User
 
 
 applyMigrations :: Connection -> IO ()

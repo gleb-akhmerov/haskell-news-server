@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Queries.Post where
+module NewsServer.Database.Post where
 
 
 import Data.Function ((&))
@@ -19,10 +19,10 @@ import Database.Beam hiding (date)
 import Database.Beam.Query.Internal (unsafeRetype)
 import Database.Beam.Postgres
 
-import BeamSchema
-import Queries.Category
-import Queries.Tag
-import Queries.Util
+import NewsServer.Database.BeamSchema
+import NewsServer.Database.Category
+import NewsServer.Database.Tag
+import NewsServer.Database.Util
 
 
 type PostsQuery s

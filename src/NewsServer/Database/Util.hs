@@ -2,7 +2,7 @@
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Queries.Util where
+module NewsServer.Database.Util where
 
 
 import Control.Monad (unless, when)
@@ -16,7 +16,7 @@ import Database.Beam.Postgres
 import Database.Beam.Postgres.Syntax (PgExpressionSyntax(..), emit, pgParens)
 import Database.Beam.Query.Internal (QAgg)
 
-import BeamSchema
+import NewsServer.Database.BeamSchema
 
 
 type DbWith = With Postgres NewsDb

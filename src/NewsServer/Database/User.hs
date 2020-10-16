@@ -1,4 +1,4 @@
-module Queries.User where
+module NewsServer.Database.User where
 
 
 import Control.Monad.Trans.Except (runExceptT)
@@ -12,8 +12,8 @@ import Database.Beam
 import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
 
-import BeamSchema
-import Queries.Util
+import NewsServer.Database.BeamSchema
+import NewsServer.Database.Util
 
 
 data CreateUser = CreateUser

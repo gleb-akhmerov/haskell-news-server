@@ -10,16 +10,16 @@ import Database.Beam.Postgres
 import Database.PostgreSQL.Simple (begin, rollback)
 import Test.Hspec
 
-import Lib (applyMigrations)
-import MaybeOrUnspecified
-import Queries.Author
-import Queries.Category
-import Queries.Commentary
-import Queries.Draft
-import Queries.Photo
-import Queries.Post
-import Queries.Tag
-import Queries.User
+import NewsServer.Lib (applyMigrations)
+import NewsServer.MaybeOrUnspecified
+import NewsServer.Database.Author
+import NewsServer.Database.Category
+import NewsServer.Database.Commentary
+import NewsServer.Database.Draft
+import NewsServer.Database.Photo
+import NewsServer.Database.Post
+import NewsServer.Database.Tag
+import NewsServer.Database.User
 
 
 withDatabaseConnection :: (Connection -> IO ()) -> IO ()

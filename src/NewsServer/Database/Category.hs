@@ -3,7 +3,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Queries.Category where
+module NewsServer.Database.Category where
 
 
 import Control.Monad.Trans.Except (runExceptT)
@@ -20,9 +20,9 @@ import Database.Beam
 import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
 
-import BeamSchema
-import MaybeOrUnspecified
-import Queries.Util
+import NewsServer.Database.BeamSchema
+import NewsServer.MaybeOrUnspecified
+import NewsServer.Database.Util
 
 
 data CreateCategory = CreateCategory

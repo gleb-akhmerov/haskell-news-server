@@ -1,6 +1,6 @@
 {-# LANGUAGE TypeFamilies #-}
 
-module Queries.Author where
+module NewsServer.Database.Author where
 
 
 import Control.Monad (when)
@@ -15,8 +15,8 @@ import Database.Beam
 import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
 
-import BeamSchema
-import Queries.Util
+import NewsServer.Database.BeamSchema
+import NewsServer.Database.Util
 
 
 data CreateAuthor = CreateAuthor

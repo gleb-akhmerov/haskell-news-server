@@ -9,7 +9,7 @@
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
-module BeamSchema where
+module NewsServer.Database.BeamSchema where
 
 import Data.ByteString (ByteString)
 import Data.Int (Int32)

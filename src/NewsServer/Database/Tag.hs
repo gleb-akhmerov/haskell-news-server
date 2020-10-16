@@ -1,4 +1,4 @@
-module Queries.Tag where
+module NewsServer.Database.Tag where
 
 
 import Control.Monad.Trans.Except (runExceptT)
@@ -11,8 +11,8 @@ import Database.Beam
 import Database.Beam.Backend.SQL.BeamExtensions
 import Database.Beam.Postgres
 
-import BeamSchema
-import Queries.Util
+import NewsServer.Database.BeamSchema
+import NewsServer.Database.Util
 
 
 data CreateTag = CreateTag
