@@ -20,6 +20,7 @@ extra-source-files:
 description:         Please see the README on GitHub at <https://github.com/gleb-akhmerov/haskell-news-server#readme>
 
 default-extensions:
+- OverloadedStrings
 - DeriveGeneric
 - ScopedTypeVariables
 - RecordWildCards

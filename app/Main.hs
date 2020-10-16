@@ -1,90 +1,85 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Main where
 
 
 import           Control.Monad.IO.Class (liftIO)
-import           Data.Bits (xor)
-import           Data.ByteString (ByteString)
+import qualified Data.ByteString as BS (ByteString)
 import qualified Data.ByteString.Char8 as BS (unpack)
-import           Data.ByteString.Lazy (toStrict)
-import qualified Data.ByteString.Lazy as LBS (ByteString)
-import           Data.ByteString.Builder (byteString, stringUtf8)
+import qualified Data.ByteString.Lazy as BL (toStrict)
+import qualified Data.ByteString.Lazy as BL (ByteString)
+import qualified Data.ByteString.Builder as BSB (byteString)
 import           Data.Int (Int32)
 import           Data.Maybe (catMaybes, isJust, fromMaybe)
 import qualified Data.Set as Set (fromList)
 import           Data.String (fromString)
 import           Data.Text (Text)
-import           Data.Text.Encoding (decodeUtf8')
-import qualified Data.Text as T (unpack)
+import qualified Data.Text.Encoding as TSE (encodeUtf8, decodeUtf8')
+import qualified Data.Text as TS (unpack)
 import           Text.Read (readMaybe)
 
-import Data.Aeson
-import Database.Beam.Postgres
-import Database.PostgreSQL.Simple (execute_, begin)
-import Network.HTTP.Types
-import Network.Wai
-import Network.Wai.Handler.Warp (run)
+import           Data.Aeson
+import           Database.Beam.Postgres
+import           Database.PostgreSQL.Simple (execute_, begin)
+import           Network.HTTP.Types
+import           Network.Wai hiding (Response)
+import qualified Network.Wai as W (Response)
+import           Network.Wai.Handler.Warp (run)
 
-import NewsServer.Database.Author
-import NewsServer.Database.Category
-import NewsServer.Database.Commentary
-import NewsServer.Database.Draft
-import NewsServer.Database.Photo
-import NewsServer.Database.Post
-import NewsServer.Database.Tag
-import NewsServer.Database.User
-import NewsServer.Database.Util
+import           NewsServer.Database.Author
+import           NewsServer.Database.Category
+import           NewsServer.Database.Commentary
+import           NewsServer.Database.Draft
+import           NewsServer.Database.Photo
+import           NewsServer.Database.Post
+import           NewsServer.Database.Tag
+import           NewsServer.Database.User
+import           NewsServer.Database.Util
 
 
-matchRoute :: ByteString -> [Text] -> ByteString -> [Text] -> Bool
-matchRoute method path rMethod rPath =
-  let match (p, rp) =
-        (p == "*") `xor` (p == rp)
-  in method == rMethod
-     && length path == length rPath
-     && all match (zip path rPath)
+data Response = Response Status ResponseHeaders BS.ByteString
+  deriving Show
+
+renderResponse :: Response -> W.Response
+renderResponse (Response status headers bs) =
+  responseBuilder status headers (BSB.byteString bs)
 
 responseJsonOk :: ToJSON a => a -> Response
-responseJsonOk = responseBuilder
+responseJsonOk = Response
   status200
   [(hContentType, "application/json")]
-  . fromEncoding . toEncoding
+  . BL.toStrict . encode
 
 responseJsonCreated :: ToJSON a => a -> Response
-responseJsonCreated = responseBuilder
+responseJsonCreated = Response
   status201
   [(hContentType, "application/json")]
-  . fromEncoding . toEncoding
+  . BL.toStrict . encode
 
-responseBs :: Status -> ResponseHeaders -> ByteString -> Response
-responseBs s h = responseBuilder s h . byteString
+responseBs :: Status -> ResponseHeaders -> BS.ByteString -> Response
+responseBs s h bs = Response s h bs
 
 notFound :: Response
-notFound = responseBuilder status404 [] "Not found"
+notFound = Response status404 [] "Not found"
 
 badRequest :: Response
-badRequest = responseBuilder status400 [] "Bad request"
+badRequest = Response status400 [] "Bad request"
 
-badRequestReason :: String -> Response
-badRequestReason err = responseBuilder status400 [] (stringUtf8 err)
+badRequestReason :: Text -> Response
+badRequestReason err = Response status400 [] (TSE.encodeUtf8 err)
 
 forbidden :: Response
-forbidden = responseBuilder status403 [] "Forbidden"
+forbidden = Response status403 [] "Forbidden"
 
 readMaybeText :: Read a => Text -> Maybe a
-readMaybeText = readMaybe . T.unpack
+readMaybeText = readMaybe . TS.unpack
 
-readMaybeBs :: Read a => ByteString -> Maybe a
+readMaybeBs :: Read a => BS.ByteString -> Maybe a
 readMaybeBs = readMaybe . BS.unpack
 
-decodeUtf8Maybe :: ByteString -> Maybe Text
-decodeUtf8Maybe = rightToMaybe . decodeUtf8'
+decodeUtf8Maybe :: BS.ByteString -> Maybe Text
+decodeUtf8Maybe = rightToMaybe . TSE.decodeUtf8'
 
 simpleQueryString :: Request -> SimpleQuery
 simpleQueryString = parseSimpleQuery . rawQueryString
-
--- ([("{\"first_name\": \"Jack\", \"last_name\": \"Black\", \"avatar_id\": 1}","")],[])
 
 hdlGetPhoto :: Text -> Pg Response
 hdlGetPhoto pIdText =
@@ -99,9 +94,9 @@ hdlGetPhoto pIdText =
     _ ->
       pure badRequest
 
-hdlPostPhoto :: LBS.ByteString -> Pg Response
+hdlPostPhoto :: BL.ByteString -> Pg Response
 hdlPostPhoto body = do
-  newId <- createPhoto (toStrict body)
+  newId <- createPhoto (BL.toStrict body)
   pure $ responseJsonCreated (object ["id" .= newId])
 
 hdlDeleteCommentary :: Text -> Text -> Pg Response
@@ -113,11 +108,11 @@ hdlDeleteCommentary postIdText comIdText =
         Left err ->
           badRequestReason err
         Right () ->
-          responseBuilder status200 [] ""
+          Response status200 [] ""
     _ ->
       pure badRequest
 
-hdlPostCommentary :: Maybe ByteString -> Text -> LBS.ByteString -> Pg Response
+hdlPostCommentary :: Maybe BS.ByteString -> Text -> BL.ByteString -> Pg Response
 hdlPostCommentary mUIdText pIdText body = do
   case (mUIdText >>= readMaybeBs, readMaybeText pIdText, decode body) of
     (Just uId, Just pId, Just entity) -> do
@@ -143,7 +138,7 @@ hdlPublishDraft dIdText =
     _ ->
       pure badRequest
 
-maybeParseOrderBy :: ByteString -> Maybe PostOrderBy
+maybeParseOrderBy :: BS.ByteString -> Maybe PostOrderBy
 maybeParseOrderBy x = case x of
   "published_at"  -> Just PoPublishedAt
   "author_name"   -> Just PoAuthorName
@@ -151,7 +146,7 @@ maybeParseOrderBy x = case x of
   "photo_count"   -> Just PoPhotoCount
   _               -> Nothing
 
-maybeParseOrder :: ByteString -> Maybe Order
+maybeParseOrder :: BS.ByteString -> Maybe Order
 maybeParseOrder x = case x of
   "asc"  -> Just Ascending
   "desc" -> Just Descending
@@ -182,7 +177,7 @@ hdlGetPostsFiltered query = do
   posts <- getPosts filters mPostOrder pageNum
   pure $ responseJsonOk posts
 
-hdlPostDraft :: Maybe ByteString -> LBS.ByteString -> Pg Response
+hdlPostDraft :: Maybe BS.ByteString -> BL.ByteString -> Pg Response
 hdlPostDraft mAuthorIdText body = do
   case (mAuthorIdText >>= readMaybeBs, decode body) of
     (Just authorId, Just entity) -> do
@@ -234,7 +229,7 @@ hdlGetAllEntities query getAllEntities = do
   entities <- getAllEntities pageNum
   pure $ responseJsonOk entities
 
-hdlPostEntityEither :: FromJSON a => (a -> Pg (Either String Int32)) -> LBS.ByteString -> Pg Response
+hdlPostEntityEither :: FromJSON a => (a -> Pg (Either Text Int32)) -> BL.ByteString -> Pg Response
 hdlPostEntityEither postEntity body = do
   case decode body of
     Nothing ->
@@ -247,7 +242,7 @@ hdlPostEntityEither postEntity body = do
         Right newId ->
           responseJsonCreated (object ["id" .= newId])
 
-hdlPostEntity :: FromJSON a => (a -> Pg Int32) -> LBS.ByteString -> Pg Response
+hdlPostEntity :: FromJSON a => (a -> Pg Int32) -> BL.ByteString -> Pg Response
 hdlPostEntity postEntity body = do
   case decode body of
     Nothing ->
@@ -256,7 +251,7 @@ hdlPostEntity postEntity body = do
       newId <- postEntity entity
       pure $ responseJsonCreated (object ["id" .= newId])
 
-hdlDeleteEntity :: (Int32 -> Pg (Either String ())) -> Text -> Pg Response
+hdlDeleteEntity :: (Int32 -> Pg (Either Text ())) -> Text -> Pg Response
 hdlDeleteEntity deleteEntity eIdText =
   case readMaybeText eIdText of
     Nothing ->
@@ -267,9 +262,9 @@ hdlDeleteEntity deleteEntity eIdText =
         Left err ->
           badRequestReason err
         Right () ->
-          responseBuilder status200 [] ""
+          Response status200 [] ""
 
-hdlPutEntity :: FromJSON a => (Int32 -> a -> Pg (Either String ())) -> Text -> LBS.ByteString -> Pg Response
+hdlPutEntity :: FromJSON a => (Int32 -> a -> Pg (Either Text ())) -> Text -> BL.ByteString -> Pg Response
 hdlPutEntity updateEntity eIdText body = do
   case (readMaybeText eIdText, decode body) of
     (Just eId, Just entityUpd) -> do
@@ -278,7 +273,7 @@ hdlPutEntity updateEntity eIdText body = do
         Left err ->
           badRequestReason err
         Right () ->
-          responseBuilder status200 [] ""
+          Response status200 [] ""
     _ ->
       pure badRequest
 
@@ -413,4 +408,5 @@ main = do
         ("GET",    ["posts", id_])      -> withAuth AUser query $ hdlGetEntity getPost id_
 
         _ -> pure notFound
-    send response
+    putStrLn $ show response
+    send (renderResponse response)

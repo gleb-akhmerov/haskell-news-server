@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecursiveDo #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
@@ -35,7 +34,7 @@ instance FromJSON CreateCategory where
   parseJSON = genericParseJSON defaultOptions
                 { fieldLabelModifier = camelTo2 '_' . drop (length ("cCategory" :: String)) }
 
-createCategory :: CreateCategory -> Pg (Either String Int32)
+createCategory :: CreateCategory -> Pg (Either Text Int32)
 createCategory cc = runExceptT $ do
   maybeDo (makeSureEntityExists "Category" (dbCategory newsDb) categoryId) (cCategoryParentId cc)
   [category] <- runInsertReturningList $ insert (dbCategory newsDb) $
@@ -62,7 +61,7 @@ instance FromJSON UpdateCategory where
                 uCategoryNewName <- v .:? "new_name"
                 return UpdateCategory {..}
 
-updateCategory :: Int32 -> UpdateCategory -> Pg (Either String ())
+updateCategory :: Int32 -> UpdateCategory -> Pg (Either Text ())
 updateCategory uCategoryId uc = runExceptT $ do
   makeSureEntityExists "Category" (dbCategory newsDb) categoryId uCategoryId
   case uCategoryNewParentId uc of
@@ -78,7 +77,7 @@ updateCategory uCategoryId uc = runExceptT $ do
                      (\c -> categoryId c ==. val_ uCategoryId)
 
 
-deleteCategory :: Int32 -> Pg (Either String ())
+deleteCategory :: Int32 -> Pg (Either Text ())
 deleteCategory dCategoryId = runExceptT $ do
   makeSureEntityExists "Category" (dbCategory newsDb) categoryId dCategoryId
   makeSureNoMaybeReferenceExists "Category" "Categories" (dbCategory newsDb) categoryParentId categoryId dCategoryId

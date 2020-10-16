@@ -34,9 +34,9 @@ data CreateDraft = CreateDraft
 
 instance FromJSON CreateDraft where
   parseJSON = genericParseJSON defaultOptions
-                { fieldLabelModifier = camelTo2 '_' . drop (length "cDraft") }
+                { fieldLabelModifier = camelTo2 '_' . drop (length ("cDraft" :: String)) }
 
-createDraft :: Int32 -> CreateDraft -> Pg (Either String Int32)
+createDraft :: Int32 -> CreateDraft -> Pg (Either Text Int32)
 createDraft cDraftAuthorId cd = runExceptT $ do
   makeSureEntityExists "Author" (dbAuthor newsDb) authorId cDraftAuthorId
   makeSureEntityExists "Category" (dbCategory newsDb) categoryId (cDraftCategoryId cd)
@@ -76,13 +76,13 @@ createDraft cDraftAuthorId cd = runExceptT $ do
   pure (draftId draft)
 
 
-publishDraft :: Int32 -> Pg (Either String Int32)
+publishDraft :: Int32 -> Pg (Either Text Int32)
 publishDraft dId = runExceptT $ do
   mDraft <- runSelectReturningOne $ select $
     filter_ (\d -> draftId d ==. val_ dId) (all_ (dbDraft newsDb))
   case mDraft of
     Nothing ->
-      throwE $ "Draft with id doesn't exist: " ++ show dId
+      throwE $ "Draft with id doesn't exist: " <> tshow dId
     Just draft -> do
       let newPost :: PostT (QExpr Postgres s)
           newPost =
@@ -139,10 +139,10 @@ data UpdateDraft = UpdateDraft
 
 instance FromJSON UpdateDraft where
   parseJSON = genericParseJSON defaultOptions
-                { fieldLabelModifier = camelTo2 '_' . drop (length "uDraft") }
+                { fieldLabelModifier = camelTo2 '_' . drop (length ("uDraft" :: String)) }
 
 
-updateDraft :: Int32 -> UpdateDraft -> Pg (Either String ())
+updateDraft :: Int32 -> UpdateDraft -> Pg (Either Text ())
 updateDraft uDraftId ud = runExceptT $ do
   makeSureEntityExists "Draft" (dbDraft newsDb) draftId uDraftId
   maybeDo (makeSureEntityExists "Category" (dbCategory newsDb) categoryId) (uDraftNewCategoryId ud)
@@ -187,7 +187,7 @@ updateDraft uDraftId ud = runExceptT $ do
         insertValues (map tagToRow newTagIds)
 
 
-deleteDraft :: Int32 -> Pg (Either String ())
+deleteDraft :: Int32 -> Pg (Either Text ())
 deleteDraft dDraftId = runExceptT $ do
   makeSureEntityExists "Draft" (dbDraft newsDb) draftId dDraftId
   makeSureNoReferenceExists "Draft" "Posts" (dbPost newsDb) postId postId dDraftId
@@ -215,7 +215,7 @@ data ReturnedDraft = ReturnedDraft
 
 instance ToJSON ReturnedDraft where
   toJSON = genericToJSON defaultOptions
-             { fieldLabelModifier = camelTo2 '_' . drop (length "rDraft") }
+             { fieldLabelModifier = camelTo2 '_' . drop (length ("rDraft" :: String)) }
 
 draftToReturned :: Draft -> ReturnedDraft
 draftToReturned d =
@@ -256,7 +256,7 @@ isDraftByAuthor gDraftId gAuthorId = do
   pure (isJust mDraft)
 
 
-makeSureTagsExist :: [Int32] -> ExceptT String Pg ()
+makeSureTagsExist :: [Int32] -> ExceptT Text Pg ()
 makeSureTagsExist tagIds =
   unless (null tagIds) $ do
     tagIdsNotInDb <- runSelectReturningList $ select $ do
@@ -265,10 +265,10 @@ makeSureTagsExist tagIds =
       guard_ (isNothing_ (tagId tag))
       pure cdTagId
     unless (null tagIdsNotInDb) $
-      throwE $ "Tags with ids don't exist: " ++ show tagIdsNotInDb
+      throwE $ "Tags with ids don't exist: " <> tshow tagIdsNotInDb
 
 
-makeSurePhotosExist :: [Int32] -> ExceptT String Pg ()
+makeSurePhotosExist :: [Int32] -> ExceptT Text Pg ()
 makeSurePhotosExist photoIds =
   unless (null photoIds) $ do
     photoIdsNotInDb <- runSelectReturningList $ select $ do
@@ -277,4 +277,4 @@ makeSurePhotosExist photoIds =
       guard_ (isNothing_ (photoId photo))
       pure cdAdditionalPhotoId
     unless (null photoIdsNotInDb) $
-      throwE $ "Photos with ids don't exist: " ++ show photoIdsNotInDb
+      throwE $ "Photos with ids don't exist: " <> tshow photoIdsNotInDb

@@ -22,7 +22,7 @@ data CreateTag = CreateTag
 
 instance FromJSON CreateTag where
   parseJSON = genericParseJSON defaultOptions
-                { fieldLabelModifier = camelTo2 '_' . drop (length "cTag") }
+                { fieldLabelModifier = camelTo2 '_' . drop (length ("cTag" :: String)) }
 
 createTag :: CreateTag -> Pg Int32
 createTag ct = do
@@ -43,9 +43,9 @@ data UpdateTag = UpdateTag
 
 instance FromJSON UpdateTag where
   parseJSON = genericParseJSON defaultOptions
-                { fieldLabelModifier = camelTo2 '_' . drop (length "uTag") }
+                { fieldLabelModifier = camelTo2 '_' . drop (length ("uTag" :: String)) }
 
-updateTag :: Int32 -> UpdateTag -> Pg (Either String ())
+updateTag :: Int32 -> UpdateTag -> Pg (Either Text ())
 updateTag uTagId ut = runExceptT $ do
   makeSureEntityExists "Tag" (dbTag newsDb) tagId uTagId
   runUpdate $ update (dbTag newsDb)
@@ -53,7 +53,7 @@ updateTag uTagId ut = runExceptT $ do
                      (\t -> tagId t ==. val_ uTagId)
 
 
-deleteTag :: Int32 -> Pg (Either String ())
+deleteTag :: Int32 -> Pg (Either Text ())
 deleteTag dTagId = runExceptT $ do
   makeSureEntityExists "Tag" (dbTag newsDb) tagId dTagId
   makeSureNoReferenceExistsMtm "Tag" "Posts"
@@ -77,7 +77,7 @@ data ReturnedTag = ReturnedTag
 
 instance ToJSON ReturnedTag where
   toJSON = genericToJSON defaultOptions
-             { fieldLabelModifier = camelTo2 '_' . drop (length "rTag") }
+             { fieldLabelModifier = camelTo2 '_' . drop (length ("rTag" :: String)) }
 
 tagToReturned :: Tag -> ReturnedTag
 tagToReturned t =

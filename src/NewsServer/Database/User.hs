@@ -25,9 +25,9 @@ data CreateUser = CreateUser
 
 instance FromJSON CreateUser where
   parseJSON = genericParseJSON defaultOptions
-                { fieldLabelModifier = camelTo2 '_' . drop (length "cUser") }
+                { fieldLabelModifier = camelTo2 '_' . drop (length ("cUser" :: String)) }
 
-createUser :: CreateUser -> Pg (Either String Int32)
+createUser :: CreateUser -> Pg (Either Text Int32)
 createUser cu = runExceptT $ do
   makeSureEntityExists "Photo" (dbPhoto newsDb) photoId (cUserAvatarId cu)
   [user] <- runInsertReturningList $ insert (dbUser newsDb) $
@@ -43,7 +43,7 @@ createUser cu = runExceptT $ do
   pure (userId user)
 
 
-createAdminUser :: CreateUser -> Pg (Either String Int32)
+createAdminUser :: CreateUser -> Pg (Either Text Int32)
 createAdminUser cu = runExceptT $ do
   makeSureEntityExists "Photo" (dbPhoto newsDb) photoId (cUserAvatarId cu)
   [user] <- runInsertReturningList $ insert (dbUser newsDb) $
@@ -59,7 +59,7 @@ createAdminUser cu = runExceptT $ do
   pure (userId user)
 
 
-deleteUser :: Int32 -> Pg (Either String ())
+deleteUser :: Int32 -> Pg (Either Text ())
 deleteUser dUserId = runExceptT $ do
   makeSureEntityExists "User" (dbUser newsDb) userId dUserId
   makeSureNoReferenceExists "User" "Authors" (dbAuthor newsDb) authorId authorId dUserId
@@ -80,7 +80,7 @@ data ReturnedUser = ReturnedUser
 
 instance ToJSON ReturnedUser where
   toJSON = genericToJSON defaultOptions
-             { fieldLabelModifier = camelTo2 '_' . drop (length "rUser") }
+             { fieldLabelModifier = camelTo2 '_' . drop (length ("rUser" :: String)) }
 
 userToReturned :: User -> ReturnedUser
 userToReturned a =

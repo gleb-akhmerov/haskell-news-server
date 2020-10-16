@@ -22,9 +22,9 @@ data CreateCommentary = CreateCommentary
 
 instance FromJSON CreateCommentary where
   parseJSON = genericParseJSON defaultOptions
-                { fieldLabelModifier = camelTo2 '_' . drop (length "cCommentary") }
+                { fieldLabelModifier = camelTo2 '_' . drop (length ("cCommentary" :: String)) }
 
-createCommentary :: Int32 -> Int32 -> CreateCommentary -> Pg (Either String Int32)
+createCommentary :: Int32 -> Int32 -> CreateCommentary -> Pg (Either Text Int32)
 createCommentary cCommentaryUserId cCommentaryPostId ct = runExceptT $ do
   makeSureEntityExists "User" (dbUser newsDb) userId cCommentaryUserId
   makeSureEntityExists "Post" (dbPost newsDb) postId cCommentaryPostId
@@ -40,7 +40,7 @@ createCommentary cCommentaryUserId cCommentaryPostId ct = runExceptT $ do
   pure (commentaryId commentary)
 
 
-deleteCommentary :: Int32 -> Int32 -> Pg (Either String ())
+deleteCommentary :: Int32 -> Int32 -> Pg (Either Text ())
 deleteCommentary dPostId dCommentaryId = runExceptT $ do
   makeSureEntityExists "Post" (dbPost newsDb) postId dPostId
   makeSureEntityExists "Commentary" (dbCommentary newsDb) commentaryId dCommentaryId
@@ -58,7 +58,7 @@ data ReturnedCommentary = ReturnedCommentary
 
 instance ToJSON ReturnedCommentary where
   toJSON = genericToJSON defaultOptions
-             { fieldLabelModifier = camelTo2 '_' . drop (length "rCommentary") }
+             { fieldLabelModifier = camelTo2 '_' . drop (length ("rCommentary" :: String)) }
 
 commentaryToReturned :: Commentary -> ReturnedCommentary
 commentaryToReturned c =

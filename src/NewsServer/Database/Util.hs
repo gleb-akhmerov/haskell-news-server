@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE TypeFamilies #-}
 
@@ -9,6 +8,7 @@ import Control.Monad (unless, when)
 import Control.Monad.Trans.Except (ExceptT, throwE)
 import Data.Int (Int32)
 import Data.Maybe (fromMaybe, isNothing)
+import Data.Text (Text, pack)
 import Data.Vector (Vector)
 
 import Database.Beam
@@ -25,61 +25,65 @@ type DbQExpr = QExpr Postgres
 type T2 s a b = (DbQExpr s a, DbQExpr s b)
 
 
+tshow :: Show a => a -> Text
+tshow = pack . show
+
+
 maybeAssignment :: Maybe a -> (a -> QAssignment Postgres s) -> QAssignment Postgres s
 maybeAssignment x f = fromMaybe mempty (fmap f x)
 
 
 makeSureEntityExists
   :: (FromBackendRow Postgres (table Identity), (Table table))
-  => String
+  => Text
   -> DatabaseEntity Postgres NewsDb (TableEntity table)
   -> (table (QExpr Postgres QBaseScope) -> QExpr Postgres QBaseScope Int32)
   -> Int32
-  -> ExceptT String Pg ()
+  -> ExceptT Text Pg ()
 makeSureEntityExists entityName table getEntityId entityId = do
   mEntity <- runSelectReturningOne $ select $
     join_ table (\e -> getEntityId e ==. val_ entityId)
   when (isNothing mEntity) $
-    throwE $ entityName ++ " with id doesn't exist: " ++ show entityId
+    throwE $ entityName <> " with id doesn't exist: " <> tshow entityId
 
 
 makeSureNoReferenceExists
   :: (FromBackendRow Postgres (table Identity), (Table table))
-  => String
-  -> String
+  => Text
+  -> Text
   -> DatabaseEntity Postgres NewsDb (TableEntity table)
   -> (table (QExpr Postgres QBaseScope) -> QExpr Postgres QBaseScope Int32)
   -> (table Identity -> Int32)
   -> Int32
-  -> ExceptT String Pg ()
+  -> ExceptT Text Pg ()
 makeSureNoReferenceExists entityName referencingEntitiesName referencingTable getEntityId getReferencingEntityId entityId = do
   referencingEntities <- runSelectReturningList $ select $
     join_ referencingTable (\r -> getEntityId r ==. val_ entityId)
   unless (null referencingEntities) $
-    throwE $ entityName ++ " with id " ++ show entityId ++ " is referenced by " ++ referencingEntitiesName ++ " with ids: " ++ show (fmap getReferencingEntityId referencingEntities)
+    throwE $ entityName <> " with id " <> tshow entityId <> " is referenced by " <> referencingEntitiesName <> " with ids: " <> tshow (fmap getReferencingEntityId referencingEntities)
 
 
 makeSureNoMaybeReferenceExists
   :: (FromBackendRow Postgres (table Identity), (Table table))
-  => String
-  -> String
+  => Text
+  -> Text
   -> DatabaseEntity Postgres NewsDb (TableEntity table)
   -> (table (QExpr Postgres QBaseScope) -> QExpr Postgres QBaseScope (Maybe Int32))
   -> (table Identity -> Int32)
   -> Int32
-  -> ExceptT String Pg ()
+  -> ExceptT Text Pg ()
 makeSureNoMaybeReferenceExists entityName referencingEntitiesName referencingTable getEntityId getReferencingEntityId entityId = do
   referencingEntities <- runSelectReturningList $ select $
     join_ referencingTable (\r -> getEntityId r ==. just_ (val_ entityId))
   unless (null referencingEntities) $
-    throwE $ entityName ++ " with id " ++ show entityId ++ " is referenced by " ++ referencingEntitiesName ++ " with ids: " ++ show (fmap getReferencingEntityId referencingEntities)
+    throwE $ entityName <> " with id " <> tshow entityId <> " is referenced by " <> referencingEntitiesName <> " with ids: " <> tshow (fmap getReferencingEntityId referencingEntities)
 
 
 makeSureNoReferenceExistsMtm
   :: (FromBackendRow Postgres (mtmTable Identity), (Table mtmTable))
   => (FromBackendRow Postgres (refTable Identity), (Table refTable))
-  => String
-  -> String
+  => Text
+  -> Text
   -> DatabaseEntity Postgres NewsDb (TableEntity mtmTable)
   -> (mtmTable (QExpr Postgres QBaseScope) -> QExpr Postgres QBaseScope Int32)
   -> (mtmTable (QExpr Postgres QBaseScope) -> QExpr Postgres QBaseScope Int32)
@@ -87,7 +91,7 @@ makeSureNoReferenceExistsMtm
   -> (refTable (QExpr Postgres QBaseScope) -> QExpr Postgres QBaseScope Int32)
   -> (refTable Identity -> Int32)
   -> Int32
-  -> ExceptT String Pg ()
+  -> ExceptT Text Pg ()
 makeSureNoReferenceExistsMtm entityName referencingEntitiesName mtmTable mtmEntityId mtmReferencingId refTable getReferenceId getReferenceId' entityId = do
   referencingEntities <- runSelectReturningList $ select $ do
     mtm <- join_ mtmTable
@@ -96,7 +100,7 @@ makeSureNoReferenceExistsMtm entityName referencingEntitiesName mtmTable mtmEnti
                                (\r -> getReferenceId r ==. mtmReferencingId mtm)
     pure referencingEntity
   unless (null referencingEntities) $
-    throwE $ entityName ++ " with id " ++ show entityId ++ " is referenced by " ++ referencingEntitiesName ++ " with ids: " ++ show (fmap getReferenceId' referencingEntities)
+    throwE $ entityName <> " with id " <> tshow entityId <> " is referenced by " <> referencingEntitiesName <> " with ids: " <> tshow (fmap getReferenceId' referencingEntities)
 
 
 maybeDo :: Applicative f => (x -> f ()) -> Maybe x -> f ()

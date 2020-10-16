@@ -27,15 +27,15 @@ data CreateAuthor = CreateAuthor
 
 instance FromJSON CreateAuthor where
   parseJSON = genericParseJSON defaultOptions
-                { fieldLabelModifier = camelTo2 '_' . drop (length "cAuthor") }
+                { fieldLabelModifier = camelTo2 '_' . drop (length ("cAuthor" :: String)) }
 
-createAuthor :: CreateAuthor -> Pg (Either String Int32)
+createAuthor :: CreateAuthor -> Pg (Either Text Int32)
 createAuthor ca = runExceptT $ do
   makeSureEntityExists "User" (dbUser newsDb) userId (cAuthorUserId ca)
   mEntity <- runSelectReturningOne $ select $
     join_ (dbAuthor newsDb) (\a -> authorId a ==. val_ (cAuthorUserId ca))
   when (isJust mEntity) $
-    throwE $ "User with id is already an author: " ++ show (cAuthorUserId ca)
+    throwE $ "User with id is already an author: " <> tshow (cAuthorUserId ca)
   [author] <- runInsertReturningList $ insert (dbAuthor newsDb) $
     insertExpressions
       [ Author { authorId               = val_ (cAuthorUserId ca)
@@ -52,16 +52,16 @@ data UpdateAuthor = UpdateAuthor
 
 instance FromJSON UpdateAuthor where
   parseJSON = genericParseJSON defaultOptions
-                { fieldLabelModifier = camelTo2 '_' . drop (length "uAuthor") }
+                { fieldLabelModifier = camelTo2 '_' . drop (length ("uAuthor" :: String)) }
 
-updateAuthor :: Int32 -> UpdateAuthor -> Pg (Either String ())
+updateAuthor :: Int32 -> UpdateAuthor -> Pg (Either Text ())
 updateAuthor uAuthorId ua = runExceptT $ do
   makeSureEntityExists "Author" (dbAuthor newsDb) authorId uAuthorId
   runUpdate $ update (dbAuthor newsDb)
                      (\a -> authorShortDescription a <-. val_ (uAuthorNewShortDescription ua))
                      (\a -> authorId a ==. val_ uAuthorId)
 
-deleteAuthor :: Int32 -> Pg (Either String ())
+deleteAuthor :: Int32 -> Pg (Either Text ())
 deleteAuthor dAuthorId = runExceptT $ do
   makeSureEntityExists "Author" (dbAuthor newsDb) authorId dAuthorId
   makeSureNoReferenceExists "Author" "Drafts" (dbDraft newsDb) draftAuthorId draftId dAuthorId
@@ -78,7 +78,7 @@ data ReturnedAuthor = ReturnedAuthor
 
 instance ToJSON ReturnedAuthor where
   toJSON = genericToJSON defaultOptions
-             { fieldLabelModifier = camelTo2 '_' . drop (length "rAuthor") }
+             { fieldLabelModifier = camelTo2 '_' . drop (length ("rAuthor" :: String)) }
 
 authorToReturned :: Author -> ReturnedAuthor
 authorToReturned a =
