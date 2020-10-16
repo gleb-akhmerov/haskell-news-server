@@ -1,4 +1,5 @@
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE FlexibleContexts #-}
 
 module NewsServer.Database.Author where
 
@@ -31,7 +32,7 @@ instance FromJSON CreateAuthor where
 
 createAuthor :: CreateAuthor -> Pg (Either Text Int32)
 createAuthor ca = runExceptT $ do
-  makeSureEntityExists "User" (dbUser newsDb) userId (cAuthorUserId ca)
+--  makeSureEntityExists "User" (dbUser newsDb) userId (cAuthorUserId ca)
   mEntity <- runSelectReturningOne $ select $
     join_ (dbAuthor newsDb) (\a -> authorId a ==. val_ (cAuthorUserId ca))
   when (isJust mEntity) $

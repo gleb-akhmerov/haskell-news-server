@@ -325,6 +325,17 @@ withCommentAuth commentIdText query resp =
     _ ->
       pure forbidden
 
+data LogLevel
+  = LevelInfo
+  | LevelError
+
+logLn :: LogLevel -> String -> IO ()
+logLn level mes = do
+  let l = case level of
+            LevelInfo  -> "INFO "
+            LevelError -> "ERROR"
+  putStrLn $ l <> " " <> mes
+
 main :: IO ()
 main = do
   conn <- connectPostgreSQL "host='localhost' port='5432' dbname='haskell-news-server' user='postgres'"
@@ -364,8 +375,8 @@ main = do
         path = pathInfo req
         query = simpleQueryString req
     body <- strictRequestBody req
-    putStrLn $ BS.unpack method ++ " " ++ show path ++ " " ++ show query ++ " " ++ show body
-    response <- runBeamPostgresDebug putStrLn conn $
+    logLn LevelInfo $ BS.unpack method <> " " <> show path <> " " <> show query <> " " <> show body
+    response @ (Response status _ _) <- runBeamPostgres conn $
       case (method, path) of
         ("GET",    ["users"])           -> withAuth AUser  query $ hdlGetAllEntities query getAllUsers
         ("GET",    ["users", id_])      -> withAuth AUser  query $ hdlGetEntity getUser id_
@@ -408,5 +419,8 @@ main = do
         ("GET",    ["posts", id_])      -> withAuth AUser query $ hdlGetEntity getPost id_
 
         _ -> pure notFound
-    putStrLn $ show response
+    let level = if statusIsSuccessful status
+                then LevelInfo
+                else LevelError
+    logLn level $ show response
     send (renderResponse response)
